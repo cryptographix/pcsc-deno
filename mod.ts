@@ -1,8 +1,11 @@
-export * from "./src/types.ts";
-export * from "./src/constants.ts";
-export * from "./src/context.ts";
-export * from "./src/card.ts";
+export * from "./src/card-reader.ts";
 
-import * as ffi from "./src/pcsc-ffi.ts";
-export { ffi as lib };
+import * as PCSC from "./src/pcsc-types/mod.ts";
+export { PCSC };
 
+export * from "./src/deno-pcsc-ffi/context.ts";
+
+// native interface
+export { CSTR } from "./src/deno-pcsc-ffi/ffi-utils.ts";
+import * as nativeDenoFFI from "./src/deno-pcsc-ffi/pcsc-ffi.ts";
+export { nativeDenoFFI };
