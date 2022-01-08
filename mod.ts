@@ -1,4 +1,6 @@
 export * from "./src/card-reader.ts";
+export * from "./src/command-apdu.ts";
+export * from "./src/response-apdu.ts";
 
 import * as PCSC from "./src/pcsc-types/mod.ts";
 export { PCSC };
