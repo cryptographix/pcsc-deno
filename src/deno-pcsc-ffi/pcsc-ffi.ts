@@ -26,6 +26,14 @@ export const pcsc = Deno.dlopen(
       parameters: ["usize", "pointer", "u32", "u32", "pointer", "pointer"],
       result: "u32",
     },
+    "SCardReconnect": {
+      parameters: ["usize", "u32", "u32", "u32", "pointer"],
+      result: "u32",
+    },
+    "SCardDisconnect": {
+      parameters: ["usize", "u32"],
+      result: "u32",
+    },
     "SCardTransmit": {
       parameters: ["usize", "pointer", "pointer", "u32", "pointer", "pointer", "pointer"],
       result: "u32",
@@ -104,6 +112,44 @@ export function SCardConnect(
     protocol: new DataView(protocol.buffer).getUint32(0, true),
   };
 }
+
+export function SCardReconnect(
+  hCard: SCARDHANDLE,
+  dwShareMode: DWORD,
+  dwPreferredProtocols: DWORD,
+  dwInitialization: DWORD,
+): { protocol: DWORD } {
+  const protocol = new Uint8Array(DWORD_SIZE);
+
+  ensureSCardSuccess(
+    pcsc.symbols.SCardReconnect(
+      hCard,
+      dwShareMode,
+      dwPreferredProtocols,
+      dwInitialization,
+      protocol,
+    ),
+    "SCardReconnect",
+  );
+
+  return {
+    protocol: new DataView(protocol.buffer).getUint32(0, true),
+  };
+}
+
+export function SCardDisconnect(
+  hCard: SCARDHANDLE,
+  dwDisposition: DWORD,
+): void {
+  ensureSCardSuccess(
+    pcsc.symbols.SCardDisconnect(
+      hCard,
+      dwDisposition,
+    ),
+    "SCardDisconnect",
+  );
+}
+
 
 //type LPCSCARD_IO_REQUEST = null;
 //type LPSCARD_IO_REQUEST = null;

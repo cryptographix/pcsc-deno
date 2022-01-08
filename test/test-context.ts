@@ -1,4 +1,4 @@
-import { Context, CommandAPDU } from "../mod.ts";
+import { Context, CommandAPDU, PCSC } from "../mod.ts";
 const hex = (bytes: Uint8Array) => Array.from(bytes).map( e => ("00"+e.toString(16).toUpperCase()).slice(-2) ).join(" ");
 
 
@@ -18,4 +18,11 @@ if ( readers.size > 0 ) {
   const rapdu = card.transmit(Uint8Array.from(selectFile.toBytes()  ), 256);
   
   console.log( hex(rapdu));
+
+  card.reconnect(PCSC.SCARD_SHARE_EXCLUSIVE);
+  console.log( "reconnected");
+
+  card.disconnect(PCSC.SCARD_UNPOWER_CARD);
+  console.log( "disconnected");
+
 }
