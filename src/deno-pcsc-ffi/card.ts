@@ -1,4 +1,4 @@
-import { Card as ICard } from '../card-reader.ts';
+import { ICard } from '../card-reader.ts';
 import { SCARDHANDLE, SCARD_SHARE_SHARED, SCARD_PROTOCOL_ANY, SCARD_LEAVE_CARD } from "../pcsc-types/mod.ts";
 import { Reader } from "./reader.ts";
 import * as native from "./pcsc-ffi.ts";

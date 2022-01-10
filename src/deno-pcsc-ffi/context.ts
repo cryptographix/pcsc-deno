@@ -1,12 +1,19 @@
-import { CardContext as IContext, Reader as IReader} from '../card-reader.ts';
-import { DWORD, SCARDCONTEXT, SCARD_SCOPE_SYSTEM } from "../pcsc-types/mod.ts";
+import { IContext, ReaderEventHandler } from "../card-reader.ts";
+import {
+  DWORD,
+  SCARD_SCOPE_SYSTEM,
+  SCARD_STATE_CHANGED,
+  SCARDCONTEXT,
+} from "../pcsc-types/mod.ts";
 import { Reader } from "./reader.ts";
+
 import * as native from "./pcsc-ffi.ts";
 import { CSTR } from "./ffi-utils.ts";
 
 export class Context implements IContext {
   #context: SCARDCONTEXT;
-  #readers: Map<string, IReader>;
+  #readers: Map<string, Reader>;
+  #eventHandlers: ReaderEventHandler[] = [];
 
   protected constructor(context: SCARDCONTEXT) {
     this.#context = context;
@@ -23,20 +30,98 @@ export class Context implements IContext {
     return new Context(context);
   }
 
-  shutdown() {
-    // TODO(@sean)
-
-    // native.SCardReleaseContext( this.#context );
-    // this.#context = 0;
-    // this.#readers = new Map();
+  releaseContext() {
+    native.SCardReleaseContext(this.#context);
+    this.#context = 0;
   }
 
-  listReaders(): Map<string, IReader> {
-    if (this.#context !== 0) {
-      this.updateReaders();
-    }
+  #readerPromise?: Promise<number> = undefined;
+  #setupReaderPromise() {
+    if (this.#readerPromise === undefined) {
+      const r = new Reader(this, CSTR.from("\\?PnP?\Notification"));
 
-    return this.#readers;
+      this.#readerPromise = native.SCardGetStatusChange(
+        this.#context,
+        0xFFFFFFFF,
+        [
+          r.readerState,
+        ],
+      ).finally(() => {
+        this.#readerPromise = undefined;
+      });
+
+      this.#readerPromise.then((res) => {
+        if (res == 0 && this.#context !== 0) {
+          this.#eventHandlers.forEach(
+            (h: ReaderEventHandler) => {
+              h("reader-inserted", new Reader(this, CSTR.from("")));
+            },
+          );
+        }
+      }).finally(() => {
+        // rerun async
+        if (this.#context !== 0) {
+          this.#setupReaderPromise();
+        }
+      });
+    }
+  }
+
+  #addEventHandler(handler: ReaderEventHandler) {
+    this.#eventHandlers.push(handler);
+
+    this.#setupReaderPromise();
+  }
+
+  onReaderEvent(handler: ReaderEventHandler): () => void {
+    this.#addEventHandler(handler);
+
+    return () => {
+      this.#eventHandlers = this.#eventHandlers.filter((h) => (h != handler));
+    };
+  }
+
+  shutdown() {
+    this.cancel();
+
+    this.releaseContext();
+
+    this.#readers = new Map();
+    this.#eventHandlers = [];
+  }
+
+  listReaderNames(): string[] {
+    this.updateReaders();
+
+    return Array.from(this.#readers.keys());
+  }
+
+  listReaders(): Reader[] {
+    this.updateReaders();
+
+    return Array.from(this.#readers.values());
+  }
+
+  cancel() {
+    native.SCardCancel(this.#context);
+  }
+
+  waitForChange(readers: Reader[], timeout: number): Promise<Reader[]> {
+    const states: native.SCARDREADERSTATE[] = readers.map(
+      (reader) => reader.readerState,
+    );
+
+    return native.SCardGetStatusChange(this.#context, timeout, states)
+      .then((res) => {
+        if (res == 0) {
+          return readers.filter((r) =>
+            r.readerState.eventState & SCARD_STATE_CHANGED
+          );
+        } else {
+          // timeout/error with no change
+          return [];
+        }
+      });
   }
 
   private updateReaders() {

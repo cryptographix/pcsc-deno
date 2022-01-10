@@ -1,15 +1,22 @@
-export interface CardContext {
+export type ReaderEventHandler = (event: "reader-inserted"|"reader-removed"|"card-inserted"|"card-removed"|"card-reset", reader: IReader) => void;
+
+export interface IContext {
+  onReaderEvent( handler: ReaderEventHandler ): void;
+
   shutdown(): void;
-  listReaders(): Map<string, Reader>;
+  
+  listReaders(): IReader[];
 }
 
-export interface Reader {
+export interface IReader {
   name: string;
-  isPresent: boolean;
-  connect(shareMode?: number, preferredProtocols?: number): Card;
+
+  isPresent: Promise<boolean>;
+  
+  connect(shareMode?: number, preferredProtocols?: number): ICard;
 }
 
-export interface Card {
+export interface ICard {
   transmit( commandAPDU: Uint8Array, expectedLen?: number ): Uint8Array;
 
   reconnect( shareMode?: number, preferredProtocols?: number, initialization?: number ): void;

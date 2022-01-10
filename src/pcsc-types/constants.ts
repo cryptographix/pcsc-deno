@@ -39,3 +39,7 @@ export const SCARD_STATE_EXCLUSIVE = 0x0080; /**< Exclusive Mode */
 export const SCARD_STATE_INUSE = 0x0100; /**< Shared Mode */
 export const SCARD_STATE_MUTE = 0x0200; /**< Unresponsive card */
 export const SCARD_STATE_UNPOWERED = 0x0400; /**< Unpowered card */
+
+export const SCARD_ERROR_TIMEOUT = 0x8010000a;
+export const SCARD_ERROR_CANCELLED = 0x80100002;
+export const SCARD_E_NO_SERVICE = 0x8010001d;

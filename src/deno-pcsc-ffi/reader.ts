@@ -1,5 +1,5 @@
-import { Reader as IReader, Card as ICard } from '../card-reader.ts';
-import { SCARD_SHARE_SHARED, SCARD_PROTOCOL_ANY } from "../pcsc-types/mod.ts";
+import { IReader } from '../card-reader.ts';
+import { SCARD_SHARE_SHARED, SCARD_PROTOCOL_ANY, SCARD_STATE_PRESENT } from "../pcsc-types/mod.ts";
 import { Context } from "./context.ts";
 import { Card } from "./card.ts";
 
@@ -9,7 +9,7 @@ import * as native from "./pcsc-ffi.ts";
 export class Reader implements IReader {
   #context: Context;
   #readerName: CSTR;
-  #state: Uint8Array;
+  #state: native.SCARDREADERSTATE;
 
   constructor(
     context: Context,
@@ -17,19 +17,21 @@ export class Reader implements IReader {
   ) {
     this.#context = context;
     this.#readerName = readerName;
-    this.#state = new Uint8Array(64);
+    this.#state = new native.SCARDREADERSTATE(readerName);
   }
 
   get name() {
     return this.#readerName.toString();
   }
 
-  get isPresent() {
-    // TODO: SCardGetStatusChange
-    return true;
+  get isPresent(): Promise<boolean> {
+    return this.#context.waitForChange( [this], 0)
+    .then( () => {
+      return !!(this.#state.currentState & SCARD_STATE_PRESENT);
+    });
   }
 
-  connect(shareMode = SCARD_SHARE_SHARED, supportedProtocols = SCARD_PROTOCOL_ANY): ICard {
+  connect(shareMode = SCARD_SHARE_SHARED, supportedProtocols = SCARD_PROTOCOL_ANY): Card {
     const { handle, protocol } = native.SCardConnect(
       this.#context.context,
       this.#readerName,
@@ -38,5 +40,9 @@ export class Reader implements IReader {
     );
 
     return new Card(this, handle, protocol);
+  }
+
+  get readerState(): native.SCARDREADERSTATE {
+    return this.#state; 
   }
 }
