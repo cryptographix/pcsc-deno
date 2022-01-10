@@ -12,8 +12,15 @@ const DWORD_SIZE = 4;
 
 const HANDLE_SIZE = 4;
 
+const libPath = {
+  "windows": "winscard.dll",
+  "linux": "libpcsclite.so",
+  "darwin": "/System/Library/Frameworks/PCSC.framework/PCSC"
+};
+const isWin = (Deno.build.os == "windows");
+
 export const pcsc = Deno.dlopen(
-  "/System/Library/Frameworks/PCSC.framework/PCSC",
+  libPath[Deno.build.os],
   {
     "SCardEstablishContext": {
       parameters: ["u32", "usize", "usize", "pointer"],
@@ -31,16 +38,16 @@ export const pcsc = Deno.dlopen(
       parameters: ["usize"],
       result: "u32",
     },
-    "SCardListReaders": {
+    [isWin?"SCardListReadersA":"SCardListReaders"]: {
       parameters: ["usize", "pointer", "pointer", "pointer"],
       result: "u32",
     },
-    "SCardGetStatusChange": {
+    [isWin?"SCardGetStatusChangeA":"SCardGetStatusChange"]: {
       parameters: ["usize", "u32", "pointer", "u32"],
       nonblocking: true,
       result: "u32",
     },
-    "SCardConnect": {
+    [isWin?"SCardConnectA":"SCardConnect"]: {
       parameters: ["usize", "pointer", "u32", "u32", "pointer", "pointer"],
       result: "u32",
     },
@@ -72,7 +79,7 @@ export const pcsc = Deno.dlopen(
       ],
       result: "u32",
     },
-    "SCardStatus": {
+    [isWin?"SCardStatusA":"SCardStatus"]: {
       parameters: ["usize", "u32"],
       result: "u32",
     },
@@ -153,7 +160,7 @@ export function SCardListReaders(
   const readerNames = mszReaders?.buffer ?? null;
 
   ensureSCardSuccess(
-    pcsc.symbols.SCardListReaders(
+    pcsc.symbols[isWin?"SCardListReadersA":"SCardListReaders"](
       hContext,
       mszGroups,
       readerNames,
@@ -175,7 +182,8 @@ export function SCardConnect(
   const handle = new Uint8Array(HANDLE_SIZE);
 
   ensureSCardSuccess(
-    pcsc.symbols.SCardConnect(
+//    pcsc.symbols.SCardConnectA(
+    pcsc.symbols[isWin?"SCardConnectA":"SCardConnect"](
       hContext,
       readerName.buffer,
       dwShareMode,
@@ -309,7 +317,8 @@ export function SCardCardStatus(
   }
 
   ensureSCardSuccess(
-    pcsc.symbols.SCardStatus(
+    //pcsc.symbols.SCardStatusA(
+    pcsc.symbols[isWin?"SCardStatusA":"SCardStatus"](
       hCard,
       mszReaderNames?.buffer ?? null,
       readerNamesLen,
@@ -350,7 +359,8 @@ export function SCardGetStatusChange(
   // and 64 bits), so we pack an array manually instead.
   // const size = int(unsafe.Sizeof(states[0])) - 3
 
-  const func = pcsc.symbols.SCardGetStatusChange(
+//  const func = pcsc.symbols.SCardGetStatusChangeA(
+  const func = pcsc.symbols[isWin?"SCardGetStatusChangeA":"SCardGetStatusChange"](
     hContext,
     timeout,
     stateBuffer,
@@ -452,7 +462,7 @@ export class SCARDREADERSTATE {
   readerName: CSTR;
   pUserData: null;
 
-  static SCARD_ATR_SIZE = 36;
+  static SCARD_ATR_SIZE = 33;
   static SCARDREADERSTATE_SIZE =
     (8 + 8 + 4 + 4 + 4 + SCARDREADERSTATE.SCARD_ATR_SIZE);
 

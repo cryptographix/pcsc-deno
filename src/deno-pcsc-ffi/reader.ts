@@ -1,4 +1,4 @@
-import { IReader } from '../card-reader.ts';
+import { IReader, SmartCardException } from '../card-reader.ts';
 import { SCARD_SHARE_SHARED, SCARD_PROTOCOL_ANY, SCARD_STATE_PRESENT } from "../pcsc-types/mod.ts";
 import { Context } from "./context.ts";
 import { Card } from "./card.ts";
@@ -32,6 +32,10 @@ export class Reader implements IReader {
   }
 
   connect(shareMode = SCARD_SHARE_SHARED, supportedProtocols = SCARD_PROTOCOL_ANY): Card {
+    if (!this.#context.isValidContext(this.#context.context)) {
+      throw new SmartCardException("SmartCard context is shutdown");
+    }
+
     const { handle, protocol } = native.SCardConnect(
       this.#context.context,
       this.#readerName,

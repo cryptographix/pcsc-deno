@@ -14,10 +14,10 @@
       "runtimeArgs": [
         "run",
         "--unstable",
-        "--inspect-brk=127.0.0.1:9229",
+        "--inspect-brk=127.0.0.1:9000",
         "--allow-all"
       ],
-      "attachSimplePort": 9229
+      "attachSimplePort": 9000
     }
   ]
 }

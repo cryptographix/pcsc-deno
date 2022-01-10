@@ -11,7 +11,7 @@ context.onReaderEvent((event, _reader) => {
   console.log("Event:", event);
 });
 
-console.log(`Readers:[ ${context.listReaderNames().join(",")} ]`);
+console.log(`Readers:[ ${context.listReaderNames().join(",")}]`);
 
 const readers = context.listReaders();
 if (readers.length > 0) {
