@@ -1,4 +1,7 @@
+import { SmartCardException } from "./card-reader.ts";
 import { toHex } from "./buffer-utils.ts";
+
+type BytesLike = Uint8Array | ArrayLike<number> | ArrayBufferLike;
 
 /**
  * Encoder/Decodor Kind for a APDU Command
@@ -8,16 +11,20 @@ export class CommandAPDU {
   INS: number;
   P1: number;
   P2: number;
-  data: Uint8Array;
+  data?: Uint8Array;
   Le?: number;
   description: string;
 
-  constructor(CLA = 0x00, INS = 0x00, P1 = 0x00, P2 = 0x00, data?: Uint8Array) {
+  constructor(CLA = 0x00, INS = 0x00, P1 = 0x00, P2 = 0x00, data?: BytesLike) {
     this.CLA = CLA;
     this.INS = INS;
     this.P1 = P1;
     this.P2 = P2;
-    this.data = data || new Uint8Array();
+    if (data !== undefined) {
+      this.data = (data instanceof Uint8Array)
+        ? data
+        : new Uint8Array(data ?? []);
+    }
 
     this.Le = undefined;
     this.description = "";
@@ -45,7 +52,7 @@ export class CommandAPDU {
   }
 
   public get Lc(): number {
-    return this.data.length;
+    return this.data?.length ?? 0;
   }
   public get header(): Uint8Array {
     return new Uint8Array([this.CLA, this.INS, this.P1, this.P2]);
@@ -69,13 +76,15 @@ export class CommandAPDU {
     INS: number,
     P1: number,
     P2: number,
-    data?: Uint8Array,
+    data?: BytesLike,
   ): this {
     this.CLA = CLA;
     this.INS = INS;
     this.P1 = P1;
     this.P2 = P2;
-    this.data = data || new Uint8Array();
+    if (data !== undefined) {
+      this.setData(data);
+    }
     this.Le = undefined;
 
     return this;
@@ -97,8 +106,8 @@ export class CommandAPDU {
     this.P2 = P2;
     return this;
   }
-  public setData(data: Uint8Array): this {
-    this.data = data;
+  public setData(data: BytesLike): this {
+    this.data = (data instanceof Uint8Array) ? data : new Uint8Array(data);
     return this;
   }
   public setLe(Le: number): this {
@@ -113,8 +122,8 @@ export class CommandAPDU {
   /**
    * Encoder
    */
-  public toBytes(_options?: unknown): Uint8Array {
-    const hasLe = (this.Le !== undefined && this.Le > 0);
+  public toBytes(options?: { protocol?: number }): Uint8Array {
+    let hasLe = (this.Le !== undefined && this.Le > 0);
 
     const dlen = ((this.Lc > 0) ? 1 + this.Lc : 0);
     const len = 4 + dlen + ((hasLe) ? 1 : 0);
@@ -125,7 +134,10 @@ export class CommandAPDU {
     apduBuffer.set(this.header);
     if (this.Lc) {
       apduBuffer[4] = this.Lc;
-      apduBuffer.set(this.data, 5);
+      apduBuffer.set(this.data!, 5);
+
+      // if T0, cannot have Lc and Le
+      hasLe &&= (options?.protocol ?? 0) != 0;
     }
 
     if (hasLe) {
@@ -138,34 +150,36 @@ export class CommandAPDU {
   /**
    * Decoder
    */
-  public from(bytes: Uint8Array | number[], _options: unknown): this {
-    if (bytes.length < 4) {
+  static from(bytes: BytesLike, _options?: unknown): CommandAPDU {
+    const buffer = (bytes instanceof Uint8Array)
+      ? bytes
+      : new Uint8Array(bytes);
+
+    if (buffer.length < 4) {
       throw new Error("CommandAPDU: Invalid buffer");
     }
 
-    let offset = 0;
+    const [CLA, INS, P1, P2, ...rest] = buffer;
+    const apdu = CommandAPDU.init(CLA, INS, P1, P2);
 
-    this.CLA = bytes[offset++];
-    this.INS = bytes[offset++];
-    this.P1 = bytes[offset++];
-    this.P2 = bytes[offset++];
+    let offset = 4;
 
-    if (bytes.length > offset + 1) {
-      const Lc = bytes[offset++];
+    if (rest.length > 1) {
+      const [Lc, ...data] = rest;
 
-      this.data = Uint8Array.from(bytes.slice(offset, Lc));
+      apdu.setData(data.slice(0, Lc));
 
-      offset += Lc;
+      offset += 1 + Lc;
     }
 
-    if (bytes.length > offset) {
-      this.Le = bytes[offset++];
+    if (buffer.length > offset) {
+      apdu.setLe(buffer[offset++]);
     }
 
-    if (bytes.length != offset) {
-      throw new Error("CommandAPDU: Invalid buffer");
+    if (buffer.length != offset) {
+      throw new SmartCardException("CommandAPDU: Invalid buffer");
     }
 
-    return this;
+    return apdu;
   }
 }

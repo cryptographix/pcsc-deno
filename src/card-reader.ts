@@ -1,5 +1,8 @@
 export type ReaderEventHandler = (event: "reader-inserted"|"reader-removed"|"card-inserted"|"card-removed"|"card-reset", reader: IReader) => void;
 
+export class SmartCardException extends Error {
+}
+
 export interface IContext {
   onReaderEvent( handler: ReaderEventHandler ): void;
 

@@ -4,7 +4,7 @@ import {
   DWORD,
   SCARD_STATE_CHANGED,
   SCARDCONTEXT,
-  SCardException,
+  PCSCException,
   SCARDHANDLE,
 } from "../pcsc-types/mod.ts";
 
@@ -102,7 +102,7 @@ export const pcsc = Deno.dlopen(
 function ensureSCardSuccess(rc: unknown, func: string) {
   if (typeof rc == "number") {
     if (rc != 0) {
-      throw new SCardException(rc, func);
+      throw new PCSCException(rc, func);
     }
   }
 }
@@ -246,11 +246,11 @@ export function SCardTransmit(
   const pioRecvPci = new Uint8Array(8);
   pioRecvPci.set(pioSendPci);
 
-  const recvBuffer = new Uint8Array(recvLength);
+  const recvBuffer = new Uint8Array(recvLength+2);
 
   const length = new Uint8Array(DWORD_SIZE);
 
-  new DataView(length.buffer).setUint32(0, recvLength);
+  new DataView(length.buffer).setUint32(0, recvBuffer.length);
 
   ensureSCardSuccess(
     pcsc.symbols.SCardTransmit(

@@ -28,7 +28,9 @@ if (readers.length > 0) {
     );
   }
 
-  if (!await reader.isPresent) {
+  const isPresent = await reader.isPresent;
+
+  if (!isPresent) {
     console.log("not present");
   } else {
     console.log(reader.readerState);
@@ -36,18 +38,20 @@ if (readers.length > 0) {
     const card = reader.connect();
     console.log(card);
 
-    const selectFile = new CommandAPDU(
-      0x00,
-      0xA4,
-      0x04,
-      0x00,
-      new Uint8Array([0xA0, 0x00, 0x00, 0x01, 0x54, 0x44, 0x42]),
+    const selectFile = CommandAPDU.from( [0x00,0xA4,0x04,0x00] )
+          .setData( [0xA0, 0x00, 0x00, 0x01, 0x54, 0x49, 0x44] );
+    const selectMF = CommandAPDU.from([0x00, 0xA4, 0x00, 0x00])
+      .setData([0x3f, 0x00]);
+
+    console.log(hex(selectMF.toBytes()));
+    let rapdu = card.transmitAPDU(selectFile);
+
+    console.log(hex(rapdu.toBytes()));
+
+    rapdu = card.transmitAPDU(
+      CommandAPDU.from([0x00, 0xC0, 0x00, 0x00, rapdu.SW & 0xff]),
     );
-
-    console.log(hex(selectFile.toBytes()));
-    const rapdu = card.transmit(Uint8Array.from(selectFile.toBytes()), 256);
-
-    console.log(hex(rapdu));
+    console.log(hex(rapdu.toBytes()));
 
     card.reconnect(PCSC.SCARD_SHARE_EXCLUSIVE);
     console.log("reconnected");

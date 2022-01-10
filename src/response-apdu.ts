@@ -1,4 +1,7 @@
+import { SmartCardException } from './card-reader.ts';
 import { toHex } from "./buffer-utils.ts";
+
+type BytesLike = Uint8Array | ArrayLike<number> | ArrayBufferLike;
 
 /**
  * Encoder/Decodor for a APDU Response
@@ -13,15 +16,15 @@ export class ResponseAPDU {
    *
    * Deserialize from a JSON object
    */
-  constructor() {
-    this.SW = 0;
-    this.data = new Uint8Array();
+  constructor(SW = 0x0000, data: BytesLike = []) {
+    this.SW = SW;
+    this.data = (data instanceof Uint8Array) ? data : new Uint8Array(data);
     this.description = "";
   }
 
   public toString(): string {
     let s = "ResponseAPDU ";
-    s += "SW=0x" + toHex([this.SW>>8, this.SW & 0xff], false);
+    s += "SW=0x" + toHex([this.SW >> 8, this.SW & 0xff], false);
     if (this.data && this.data.length) {
       s += "," + "La=" + this.La;
       s += "," + "Data=" + toHex(this.data);
@@ -37,13 +40,13 @@ export class ResponseAPDU {
     return this.data.length;
   }
 
-  public static init(sw: number, data?: Uint8Array): ResponseAPDU {
-    return (new ResponseAPDU()).set(sw, data);
+  public static init(SW = 0x0000, data: BytesLike = []): ResponseAPDU {
+    return (new ResponseAPDU()).set(SW, data);
   }
 
-  public set(sw: number, data?: Uint8Array): this {
+  public set(sw: number, data: BytesLike): this {
     this.SW = sw;
-    this.data = data || new Uint8Array();
+    this.data = (data instanceof Uint8Array) ? data : new Uint8Array(data);
 
     return this;
   }
@@ -60,8 +63,8 @@ export class ResponseAPDU {
     this.SW = (this.SW & 0xFF00) | SW2;
     return this;
   }
-  public setData(data: Uint8Array): this {
-    this.data = data;
+  public setData(data: BytesLike): this {
+    this.data = (data instanceof Uint8Array) ? data : new Uint8Array(data);
     return this;
   }
   public setDescription(description: string): this {
@@ -72,7 +75,7 @@ export class ResponseAPDU {
   /**
    * Encoder function, returns a blob from an APDUResponse object
    */
-  public encodeBytes(_options?: unknown): Uint8Array {
+  public toBytes(_options?: unknown): Uint8Array {
     const bytes = new Uint8Array(this.La + 2);
 
     bytes.set(this.data, 0);
@@ -82,16 +85,18 @@ export class ResponseAPDU {
     return bytes;
   }
 
-  public decodeBytes(bytes: Uint8Array, _options?: unknown): this {
-    if (bytes.length < 2) {
-      throw new Error("ResponseAPDU Buffer invalid");
+  public static from(bytes: BytesLike, _options?: unknown): ResponseAPDU {
+    const buffer = (bytes instanceof Uint8Array) ? bytes : new Uint8Array(bytes);
+
+    if (buffer.length < 2) {
+      throw new SmartCardException("ResponseAPDU Buffer invalid");
     }
 
-    const la = bytes.length - 2;
+    const la = buffer.length - 2;
 
-    this.SW = new DataView(bytes.buffer).getUint16(la);
-    this.data = (la) ? bytes.slice(0, la) : new Uint8Array();
+    const SW = new DataView(buffer.buffer).getUint16(la);
+    const data = buffer.slice(0, la);
 
-    return this;
+    return new ResponseAPDU(SW,data);
   }
 }

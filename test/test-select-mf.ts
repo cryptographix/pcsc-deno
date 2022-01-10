@@ -1,15 +1,4 @@
-Deno FFI bindings to the PC/SC API
-
-Currently for OS/X, with (windows/linux) coming soon
-
-This mod offers three abstractions over the PC/SC API
-1. High-level classes `Context, Card, CommandAPDU/ResponseAPDU`
-2. Low-level functions `SCardxx` that roughly map to standard [PC/SC]
-3. TODO: OpenMobileAPI [OMAPI]
-
-# High level usage
-```typescript
-import { Context, CommandAPDU, PCSC } from "https://<pcsc-deno-repo>/mod.ts";
+import { Context, CommandAPDU, PCSC } from "../mod.ts"; // "https://<pcsc-deno-repo>/mod.ts";
 
 const context = Context.establishContext();
 
@@ -30,7 +19,6 @@ for( const reader of readers ) {
     if ( resp.SW == 0x9000 ) {
       // success .. 
       console.log(`Reader ${reader.name}: MF selected`);
-      console.log( resp.data )
     } else {
       console.error(`Reader ${reader.name}: error ${resp.SW}`);
     }
@@ -40,9 +28,3 @@ for( const reader of readers ) {
 }
 
 context.shutdown();
-```
-
-# links
-[PC/SC] https://pcscworkgroup.com/specifications/
-
-[OMAPI] https://globalplatform.org/wp-content/uploads/2016/11/GPD_Open_Mobile_API_Spec_v3.3_PublicRelease.pdf
