@@ -43,3 +43,5 @@ export const SCARD_STATE_UNPOWERED = 0x0400; /**< Unpowered card */
 export const SCARD_ERROR_TIMEOUT = 0x8010000a;
 export const SCARD_ERROR_CANCELLED = 0x80100002;
 export const SCARD_E_NO_SERVICE = 0x8010001d;
+
+export const INFINITE = 0xFFFFFFFF;

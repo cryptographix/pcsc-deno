@@ -369,6 +369,7 @@ export function SCardGetStatusChange(
 
   return func.then((res: number) => {
     if ( res !== 0 ) {
+      console.log( `GSC=0x${res.toString(16)}`);
       return res;
     }
     
@@ -466,10 +467,10 @@ export class SCARDREADERSTATE {
   static SCARDREADERSTATE_SIZE =
     (8 + 8 + 4 + 4 + 4 + SCARDREADERSTATE.SCARD_ATR_SIZE);
 
-  constructor(readerName: CSTR) {
+  constructor(readerName: string) {
     this.buffer = new Uint8Array(SCARDREADERSTATE.SCARDREADERSTATE_SIZE);
 
-    this.readerName = readerName;
+    this.readerName = CSTR.from(readerName);
 
     this.pUserData = null;
 

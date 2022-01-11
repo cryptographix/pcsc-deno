@@ -1,5 +1,5 @@
 import { IReader, SmartCardException } from '../card-reader.ts';
-import { SCARD_SHARE_SHARED, SCARD_PROTOCOL_ANY, SCARD_STATE_PRESENT } from "../pcsc-types/mod.ts";
+import { DWORD, SCARD_SHARE_SHARED, SCARD_PROTOCOL_ANY, SCARD_STATE_PRESENT, SCARD_STATE_CHANGED } from "../pcsc-types/mod.ts";
 import { Context } from "./context.ts";
 import { Card } from "./card.ts";
 
@@ -8,45 +8,71 @@ import * as native from "./pcsc-ffi.ts";
 
 export class Reader implements IReader {
   #context: Context;
-  #readerName: CSTR;
+  #readerName: string;
   #state: native.SCARDREADERSTATE;
+  #lifeCycle: "new"|"active"|"dead";
 
   constructor(
     context: Context,
-    readerName: CSTR,
+    readerName: string,
   ) {
     this.#context = context;
     this.#readerName = readerName;
     this.#state = new native.SCARDREADERSTATE(readerName);
+    this.#lifeCycle = "new";
+  }
+
+  shutdown() {
+    this.#lifeCycle = "dead";
   }
 
   get name() {
-    return this.#readerName.toString();
+    return this.#readerName;
+  }
+
+  get isActive(): boolean {
+    return this.#lifeCycle != "dead";
   }
 
   get isPresent(): Promise<boolean> {
-    return this.#context.waitForChange( [this], 0)
-    .then( () => {
-      return !!(this.#state.currentState & SCARD_STATE_PRESENT);
-    });
+    return this.#updateState(0).then(
+      (_) => (this.#state.eventState & SCARD_STATE_PRESENT)!=0
+    )
   }
 
-  connect(shareMode = SCARD_SHARE_SHARED, supportedProtocols = SCARD_PROTOCOL_ANY): Card {
+  connect(shareMode = SCARD_SHARE_SHARED, supportedProtocols = SCARD_PROTOCOL_ANY): Promise<Card> {
     if (!this.#context.isValidContext(this.#context.context)) {
       throw new SmartCardException("SmartCard context is shutdown");
     }
 
     const { handle, protocol } = native.SCardConnect(
       this.#context.context,
-      this.#readerName,
+      CSTR.from(this.#readerName),
       shareMode,
       supportedProtocols,
     );
 
-    return new Card(this, handle, protocol);
+    return Promise.resolve(new Card(this, handle, protocol));
   }
 
   get readerState(): native.SCARDREADERSTATE {
     return this.#state; 
+  }
+
+  #updateState(timeout: DWORD): Promise<boolean> {
+    switch( this.#lifeCycle ) {
+      case "new":
+        this.#state.currentState = 0;
+        this.#lifeCycle = "active";
+        /* falls through */
+
+      case "active": {
+        return this.#context.waitForChange( [this], timeout)
+        .then((_)=> (this.#state.eventState & SCARD_STATE_CHANGED)!=0 );
+      }
+
+      default:
+        return Promise.resolve(false);
+    }
   }
 }

@@ -1,9 +1,16 @@
-import { IContext, ReaderEventHandler } from "../card-reader.ts";
+import {
+  IContext,
+  IReader,
+  ReaderEventHandler,
+  ReaderEventType,
+  SmartCardException,
+} from "../card-reader.ts";
 import {
   DWORD,
   SCARD_SCOPE_SYSTEM,
   SCARD_STATE_CHANGED,
   SCARDCONTEXT,
+  INFINITE
 } from "../pcsc-types/mod.ts";
 import { Reader } from "./reader.ts";
 
@@ -14,7 +21,7 @@ export class Context implements IContext {
   #context?: SCARDCONTEXT;
   #readers: Map<string, Reader>;
   #eventHandlers: ReaderEventHandler[] = [];
-  #readerPromise?: Promise<number> = undefined;
+  #readerPromise?: Promise<void> = undefined;
 
   protected constructor(context: SCARDCONTEXT) {
     this.#context = context;
@@ -54,28 +61,26 @@ export class Context implements IContext {
   }
 
   shutdown() {
+    this.#readers.forEach( (rdr) => { rdr.shutdown(); } );
+    this.#readers = new Map();
+    this.#eventHandlers = [];
     try {
       this.cancel();
 
       this.releaseContext();
-    }
-    catch(e) {
-      // fail silently .. we're shutting down 
-    }
-    finally {
-      this.#readers = new Map();
-      this.#eventHandlers = [];
+    } catch (e) {
+      // fail silently .. we're shutting down
     }
   }
 
   listReaderNames(): string[] {
-    this.updateReaders();
+    this.#updateReaders();
 
     return Array.from(this.#readers.keys());
   }
 
   listReaders(): Reader[] {
-    this.updateReaders();
+    this.#updateReaders();
 
     return Array.from(this.#readers.values());
   }
@@ -86,7 +91,15 @@ export class Context implements IContext {
     }
   }
 
-  waitForChange(readers: Reader[], timeout: number): Promise<Reader[]> {
+  waitForChange(readers: IReader[], timeout: number): Promise<IReader[]> {
+    function areMyReaders(readers: IReader[]): readers is Reader[] {
+      return (readers.every((r) => (r instanceof Reader)));
+    }
+
+    if (!areMyReaders(readers)) {
+      throw new SmartCardException("Invalid class");
+    }
+
     if (!this.isValidContext(this.#context)) {
       return Promise.resolve([]);
     }
@@ -108,7 +121,7 @@ export class Context implements IContext {
       });
   }
 
-  private updateReaders() {
+  #updateReaders() {
     if (this.isValidContext(this.#context)) {
       const readerNamesString = CSTR.alloc(
         native.SCardListReaders(this.#context, null, null),
@@ -133,42 +146,70 @@ export class Context implements IContext {
             : []
         );
 
-      this.#readers = readerNames
-        .reduce(
-          (map, name) => map.set(name.toString(), new Reader(this, name)),
-          new Map<string, Reader>(),
-        );
+      const names = readerNames.map((r) => r.toString());
 
+      this.#updateReaderList(names);
     }
   }
 
+  #updateReaderList(names: string[]) {
+    const actualNames = Array.from(this.#readers.keys());
+
+    const addedNames = names.filter((n) => !actualNames.includes(n));
+    const removedNames = actualNames.filter((n) => !names.includes(n));
+
+    removedNames.forEach((name) => {
+      const reader = this.#readers.get(name);
+
+      if (reader) {
+        reader.shutdown();
+
+        this.#readers.delete(name);
+
+        this.#notifyListeners("reader-removed", reader);
+      }
+    });
+
+    addedNames.forEach((name) => {
+      const reader = new Reader(this, name);
+
+      this.#readers.set(name, reader);
+
+      this.#notifyListeners("reader-inserted", reader);
+    });
+  }
+
+  #notifyListeners(event: ReaderEventType, reader: Reader) {
+    this.#eventHandlers.forEach(
+      (handler: ReaderEventHandler) => {
+        handler(event, reader);
+      },
+    );
+  }
+
   #setupReaderPromise() {
-    if (this.#readerPromise === undefined && this.isValidContext(this.#context)) {
-      const r = new Reader(this, CSTR.from("\\?PnP?\Notification"));
+    if (
+      this.#readerPromise === undefined && this.isValidContext(this.#context)
+    ) {
+      const r = new Reader(this, "\\?PnP?\Notification");
 
       this.#readerPromise = native.SCardGetStatusChange(
         this.#context,
-        0xFFFFFFFF,
+        INFINITE,
         [
           r.readerState,
         ],
-      ).finally(() => {
+      ).then((res) => {
         this.#readerPromise = undefined;
-      });
 
-      this.#readerPromise.then((res) => {
-        if (res == 0 && this.#context !== 0) {
-          this.#eventHandlers.forEach(
-            (h: ReaderEventHandler) => {
-              h("reader-inserted", new Reader(this, CSTR.from("")));
-            },
-          );
+        if (res == 0 && this.isValidContext(this.#context)) {
+          this.#updateReaders();
         }
       }).finally(() => {
         // rerun async
-        if (this.isValidContext(this.#context)) {
-          this.#setupReaderPromise();
-        }
+        // if (this.isValidContext(this.#context)) {
+        //   this.#setupReaderPromise();
+        // }
       });
     }
   }

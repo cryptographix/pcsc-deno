@@ -32,7 +32,7 @@ export class Card implements ICard {
     return this.#handle;
   }
 
-  transmit(command: Uint8Array, expectedLen?: number): Uint8Array {
+  transmit(command: Uint8Array, expectedLen?: number): Promise<Uint8Array> {
     if (!this.#handle) {
       throw new SmartCardException("SmartCard disconected");
     }
@@ -43,10 +43,10 @@ export class Card implements ICard {
       expectedLen ?? 256,
     );
 
-    return response;
+    return Promise.resolve(response);
   }
 
-  transmitAPDU(commandAPDU: CommandAPDU): ResponseAPDU {
+  transmitAPDU(commandAPDU: CommandAPDU): Promise<ResponseAPDU> {
     const commandBytes = commandAPDU.toBytes({protocol: this.#protocol});
 
     const response = native.SCardTransmit(
@@ -55,14 +55,14 @@ export class Card implements ICard {
       commandAPDU.Le??0,
     );
 
-    return ResponseAPDU.from(response);
+    return Promise.resolve(ResponseAPDU.from(response));
   }
 
   reconnect(
     shareMode = SCARD_SHARE_SHARED,
     preferredProtocols = SCARD_PROTOCOL_ANY,
     initialization = SCARD_LEAVE_CARD,
-  ): void {
+  ): Promise<void> {
     if (!this.#handle) {
       throw new SmartCardException("SmartCard disconected");
     }
@@ -75,9 +75,11 @@ export class Card implements ICard {
     );
 
     this.#protocol = protocol;
+
+    return Promise.resolve();
   }
 
-  disconnect(disposition = SCARD_LEAVE_CARD): void {
+  disconnect(disposition = SCARD_LEAVE_CARD): Promise<void> {
     if (this.#handle) {
       try {
         //
@@ -90,5 +92,8 @@ export class Card implements ICard {
         this.#handle = 0;
       }
     }
+
+    return Promise.resolve();
   }
+
 }
