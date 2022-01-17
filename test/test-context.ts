@@ -1,4 +1,4 @@
-import { CommandAPDU, Context, IReader, PCSC } from "../mod.ts";
+import { CommandAPDU, Context, Reader, PCSC } from "../mod.ts";
 
 const hex = (bytes: Uint8Array) =>
   Array.from(bytes).map((e) => ("00" + e.toString(16).toUpperCase()).slice(-2))
@@ -7,33 +7,42 @@ const hex = (bytes: Uint8Array) =>
 const context = Context.establishContext();
 console.log(context);
 
-context.onReaderEvent((event, reader) => {
-  console.log(`Event ${event} for reader ${reader.name}`);
+context.onStatusChange = async (reader, status) => {
+  console.log(`Event ${status} for reader ${reader.name}`);
 
-  console.log(`Readers: [${context.listReaderNames().join(",")}]`);
+  console.log(
+    `Readers: [${
+      (await context.getReaders()).map((reader) => reader.name).join(",")
+    }]`,
+  );
 
-  if (event != "reader-removed") {
-    testReader(reader);
+  // if (status == "setup" || status=="present") {
+  //   await testReader(reader);
+  // }
+};
+
+console.log(`Readers:[ ${(await context.getReaders(true)).map((r)=>r.name).join(", ")} ]`);
+
+for( const reader of await context.getReaders() ) {
+  await testReader(reader);
+}
+
+async function testReader(reader: Reader): Promise<void> {
+  reader.onStatusChange = (reader,status) => {
+    console.log( `${reader.name} changed to ${status}`);
+
+    console.log(
+      (reader as unknown as { readerState: { currentState: number } })
+        .readerState.currentState,
+    );
   }
-});
 
-console.log(`Readers:[ ${context.listReaderNames().join(",")}]`);
-
-/*const readers = context.listReaders();
-for (const reader of readers) {
-  testReader(reader);
-}*/
-
-async function testReader(reader: IReader) {
-  while (reader.isActive) {
-    const isPresent = await reader.isPresent;
+  while (reader.isPresent) {
+    const isPresent = reader.isPresent;
 
     console.log(`${reader.name} present=${isPresent}`);
-    console.log((reader as unknown as { readerState: { currentState: number } }).readerState.currentState);
-
-    if ( !isPresent ) {
-      await context.waitForChange([reader], 1000 );
-      continue;
+    if (!isPresent) {
+      break;
     }
 
     const card = await reader.connect();
@@ -54,11 +63,13 @@ async function testReader(reader: IReader) {
     );
     console.log(hex(rapdu.toBytes()));
 
-    await card.reconnect(PCSC.SCARD_SHARE_EXCLUSIVE);
+    await card.reconnect(PCSC.ShareMode.Exclusive);
     console.log("reconnected");
 
-    await card.disconnect(PCSC.SCARD_UNPOWER_CARD);
+    await card.disconnect(PCSC.Disposition.UnpowerCard);
     console.log("disconnected");
+
+    break;
   }
 }
 

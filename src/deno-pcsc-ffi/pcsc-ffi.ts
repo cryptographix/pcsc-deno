@@ -1,32 +1,42 @@
 import { CSTR } from "./ffi-utils.ts";
-
 import {
+  CardStatus,
+  Disposition,
   DWORD,
-  SCARD_STATE_CHANGED,
-  SCARDCONTEXT,
+  DWORD_SIZE,
   PCSCException,
+  Protocol,
+  SCARDCONTEXT,
   SCARDHANDLE,
-} from "../pcsc-types/mod.ts";
+  SCARDREADERSTATE,
+  ShareMode,
+  StateFlag,
+} from "../pcsc/pcsc.ts";
+import {
+  ATR_OFFSET,
+  SCARD_ATR_SIZE,
+  SCARDREADERSTATE_SIZE,
+} from "../pcsc/reader-state.ts";
 
-const DWORD_SIZE = 4;
-
-const HANDLE_SIZE = 4;
+import { toHex } from "../buffer-utils.ts";
 
 const libPath = {
   "windows": "winscard.dll",
   "linux": "libpcsclite.so",
-  "darwin": "/System/Library/Frameworks/PCSC.framework/PCSC"
+  "darwin": "/System/Library/Frameworks/PCSC.framework/PCSC",
 };
 const isWin = (Deno.build.os == "windows");
+
+const HANDLE_SIZE = 4;
 
 export const pcsc = Deno.dlopen(
   libPath[Deno.build.os],
   {
-    "SCardEstablishContext": {
+    SCardEstablishContext: {
       parameters: ["u32", "usize", "usize", "pointer"],
       result: "u32",
     },
-    "SCardIsValidContext": {
+    SCardIsValidContext: {
       parameters: ["usize"],
       result: "u32",
     },
@@ -38,18 +48,21 @@ export const pcsc = Deno.dlopen(
       parameters: ["usize"],
       result: "u32",
     },
-    [isWin?"SCardListReadersA":"SCardListReaders"]: {
+    SCardListReaders: {
       parameters: ["usize", "pointer", "pointer", "pointer"],
       result: "u32",
+      name: `SCardListReaders${isWin ? "A" : ""}`,
     },
-    [isWin?"SCardGetStatusChangeA":"SCardGetStatusChange"]: {
+    SCardGetStatusChange: {
       parameters: ["usize", "u32", "pointer", "u32"],
       nonblocking: true,
       result: "u32",
+      name: `SCardListReaders${isWin ? "A" : ""}`,
     },
-    [isWin?"SCardConnectA":"SCardConnect"]: {
+    SCardConnect: {
       parameters: ["usize", "pointer", "u32", "u32", "pointer", "pointer"],
       result: "u32",
+      name: `SCardConnect${isWin ? "A" : ""}`,
     },
     "SCardReconnect": {
       parameters: ["usize", "u32", "u32", "u32", "pointer"],
@@ -79,11 +92,7 @@ export const pcsc = Deno.dlopen(
       ],
       result: "u32",
     },
-    [isWin?"SCardStatusA":"SCardStatus"]: {
-      parameters: ["usize", "u32"],
-      result: "u32",
-    },
-    "SCardControl": {
+    SCardStatus: {
       parameters: [
         "usize",
         "pointer",
@@ -94,13 +103,26 @@ export const pcsc = Deno.dlopen(
         "pointer",
       ],
       result: "u32",
+      name: `SCardStatus${isWin ? "A" : ""}`,
     },
-    "SCardGetAttrib": {
+    SCardControl: {
+      parameters: [
+        "usize",
+        "u32",
+        "pointer",
+        "u32",
+        "pointer",
+        "u32",
+        "pointer",
+      ],
+      result: "u32",
+    },
+    SCardGetAttrib: {
       parameters: ["usize", "u32", "pointer", "pointer"],
       result: "u32",
     },
-    "SCardSetAttrib": {
-      parameters: ["usize", "u32"],
+    SCardSetAttrib: {
+      parameters: ["usize", "u32", "pointer", "u32"],
       result: "u32",
     },
   },
@@ -114,11 +136,11 @@ function ensureSCardSuccess(rc: unknown, func: string) {
   }
 }
 
-export function SCardEstablishContext(dwScope: DWORD): SCARDCONTEXT {
+export function SCardEstablishContext(scope: DWORD): SCARDCONTEXT {
   const ctx = new Uint8Array(HANDLE_SIZE);
 
   ensureSCardSuccess(
-    pcsc.symbols.SCardEstablishContext(dwScope, 0, 0, ctx),
+    pcsc.symbols.SCardEstablishContext(scope, 0, 0, ctx),
     "SCardEstablishContext",
   );
 
@@ -160,9 +182,9 @@ export function SCardListReaders(
   const readerNames = mszReaders?.buffer ?? null;
 
   ensureSCardSuccess(
-    pcsc.symbols[isWin?"SCardListReadersA":"SCardListReaders"](
+    pcsc.symbols.SCardListReaders(
       hContext,
-      mszGroups,
+      mszGroups?.buffer ?? null,
       readerNames,
       readersLen,
     ),
@@ -175,19 +197,19 @@ export function SCardListReaders(
 export function SCardConnect(
   hContext: SCARDCONTEXT,
   readerName: CSTR,
-  dwShareMode: DWORD,
-  dwPreferredProtocols: DWORD,
-): { handle: SCARDHANDLE; protocol: DWORD } {
+  shareMode: ShareMode,
+  preferredProtocols: Protocol,
+): { handle: SCARDHANDLE; protocol: Protocol } {
   const protocol = new Uint8Array(DWORD_SIZE);
   const handle = new Uint8Array(HANDLE_SIZE);
 
   ensureSCardSuccess(
-//    pcsc.symbols.SCardConnectA(
-    pcsc.symbols[isWin?"SCardConnectA":"SCardConnect"](
+    //    pcsc.symbols.SCardConnectA(
+    pcsc.symbols.SCardConnect(
       hContext,
       readerName.buffer,
-      dwShareMode,
-      dwPreferredProtocols,
+      shareMode,
+      preferredProtocols,
       handle,
       protocol,
     ),
@@ -202,18 +224,18 @@ export function SCardConnect(
 
 export function SCardReconnect(
   hCard: SCARDHANDLE,
-  dwShareMode: DWORD,
-  dwPreferredProtocols: DWORD,
-  dwInitialization: DWORD,
-): { protocol: DWORD } {
+  shareMode: ShareMode,
+  preferredProtocols: DWORD,
+  initialization: Disposition,
+): { protocol: Protocol } {
   const protocol = new Uint8Array(DWORD_SIZE);
 
   ensureSCardSuccess(
     pcsc.symbols.SCardReconnect(
       hCard,
-      dwShareMode,
-      dwPreferredProtocols,
-      dwInitialization,
+      shareMode,
+      preferredProtocols,
+      initialization,
       protocol,
     ),
     "SCardReconnect",
@@ -226,12 +248,12 @@ export function SCardReconnect(
 
 export function SCardDisconnect(
   hCard: SCARDHANDLE,
-  dwDisposition: DWORD,
+  disposition: Disposition,
 ): void {
   ensureSCardSuccess(
     pcsc.symbols.SCardDisconnect(
       hCard,
-      dwDisposition,
+      disposition,
     ),
     "SCardDisconnect",
   );
@@ -254,7 +276,7 @@ export function SCardTransmit(
   const pioRecvPci = new Uint8Array(8);
   pioRecvPci.set(pioSendPci);
 
-  const recvBuffer = new Uint8Array(recvLength+2);
+  const recvBuffer = new Uint8Array(recvLength + 2);
 
   const length = new Uint8Array(DWORD_SIZE);
 
@@ -285,7 +307,10 @@ export function SCardBeginTransaction(hCard: SCARDHANDLE) {
   );
 }
 
-export function SCardEndTransaction(hCard: SCARDHANDLE, disposition: DWORD) {
+export function SCardEndTransaction(
+  hCard: SCARDHANDLE,
+  disposition: Disposition,
+) {
   ensureSCardSuccess(
     pcsc.symbols.SCardEndTransaction(hCard, disposition),
     "SCardEndTransaction",
@@ -298,8 +323,8 @@ export function SCardCardStatus(
   rgbAtr: Uint8Array | null,
 ): {
   readerNamesLen: DWORD;
-  state: DWORD;
-  protocol: DWORD;
+  status: CardStatus;
+  protocol: Protocol;
   atrLen: DWORD;
 } {
   const readerNamesLen = new Uint8Array(DWORD_SIZE);
@@ -317,8 +342,7 @@ export function SCardCardStatus(
   }
 
   ensureSCardSuccess(
-    //pcsc.symbols.SCardStatusA(
-    pcsc.symbols[isWin?"SCardStatusA":"SCardStatus"](
+    pcsc.symbols.SCardStatus(
       hCard,
       mszReaderNames?.buffer ?? null,
       readerNamesLen,
@@ -332,7 +356,7 @@ export function SCardCardStatus(
 
   return {
     readerNamesLen: new DataView(readerNamesLen.buffer).getUint32(0),
-    state: new DataView(state.buffer).getUint32(0),
+    status: new DataView(state.buffer).getUint32(0),
     protocol: new DataView(protocol.buffer).getUint32(0),
     atrLen: new DataView(atrLen.buffer).getUint32(0),
   };
@@ -344,13 +368,13 @@ export function SCardGetStatusChange(
   states: SCARDREADERSTATE[],
 ): Promise<number> {
   const stateBuffer = new Uint8Array(
-    SCARDREADERSTATE.SCARDREADERSTATE_SIZE * states.length,
+    SCARDREADERSTATE_SIZE * states.length,
   );
 
   states.forEach((state, index) =>
     stateBuffer.set(
       state.buffer,
-      index * SCARDREADERSTATE.SCARDREADERSTATE_SIZE,
+      index * SCARDREADERSTATE_SIZE,
     )
   );
 
@@ -359,8 +383,10 @@ export function SCardGetStatusChange(
   // and 64 bits), so we pack an array manually instead.
   // const size = int(unsafe.Sizeof(states[0])) - 3
 
-//  const func = pcsc.symbols.SCardGetStatusChangeA(
-  const func = pcsc.symbols[isWin?"SCardGetStatusChangeA":"SCardGetStatusChange"](
+  //console.log("I", toHex(stateBuffer));
+
+  //  const func = pcsc.symbols.SCardGetStatusChangeA(
+  const func = pcsc.symbols.SCardGetStatusChange(
     hContext,
     timeout,
     stateBuffer,
@@ -368,11 +394,13 @@ export function SCardGetStatusChange(
   ) as Promise<number>;
 
   return func.then((res: number) => {
-    if ( res !== 0 ) {
-      console.log( `GSC=0x${res.toString(16)}`);
+    if (res !== 0) {
+      console.log(`GSC=0x${res.toString(16)}`);
       return res;
     }
-    
+
+    //console.log("O", toHex(stateBuffer));
+
     //   switch (res) {
     //   case SCARD_ERROR_TIMEOUT:
     //   case SCARD_ERROR_CANCELLED:
@@ -385,19 +413,16 @@ export function SCardGetStatusChange(
     // }
 
     states.forEach((state, index) => {
-      state.buffer.set(
+      // update state ...
+      state.handleChange(
         stateBuffer.slice(
-          index * SCARDREADERSTATE.SCARDREADERSTATE_SIZE,
-          SCARDREADERSTATE.SCARDREADERSTATE_SIZE,
+          index * SCARDREADERSTATE_SIZE,
+          SCARDREADERSTATE_SIZE,
         ),
-        0,
       );
-
-      // ready for next
-      state.currentState = state.eventState & ~SCARD_STATE_CHANGED;
     });
 
-    return 0; // changed
+    return 0; // OK
   });
 }
 
@@ -418,7 +443,6 @@ export function SCardControl(
       dataIn,
       dataIn.length,
       dataOut,
-      dataOut,
       dataOut.length,
       outLen,
     ),
@@ -430,7 +454,7 @@ export function SCardControl(
 
 export function SCardGetAttrib(
   hCard: SCARDHANDLE,
-  dwAttrID: DWORD,
+  attrID: DWORD,
   attrib: Uint8Array | null,
 ): DWORD {
   const bufLen = new Uint8Array(DWORD_SIZE);
@@ -440,7 +464,7 @@ export function SCardGetAttrib(
   }
 
   ensureSCardSuccess(
-    pcsc.symbols.SCardGetAttrib(hCard, dwAttrID, attrib, attrib, bufLen),
+    pcsc.symbols.SCardGetAttrib(hCard, attrID, attrib, attrib, bufLen),
     "SCardGetAttrib",
   );
 
@@ -449,71 +473,27 @@ export function SCardGetAttrib(
 
 export function SCardSetAttrib(
   hCard: SCARDHANDLE,
-  dwAttrID: DWORD,
+  attrID: DWORD,
   attrib: Uint8Array,
 ) {
   ensureSCardSuccess(
-    pcsc.symbols.SCardSetAttrib(hCard, dwAttrID, attrib, attrib.length),
+    pcsc.symbols.SCardSetAttrib(hCard, attrID, attrib, attrib.length),
     "SetAttrib",
   );
 }
 
-export class SCARDREADERSTATE {
-  buffer: Uint8Array;
-  readerName: CSTR;
-  pUserData: null;
+export class SCARDREADERSTATE_FFI extends SCARDREADERSTATE<CSTR, null> {
+  protected initBuffer() {
+    this.buffer.fill(0);
 
-  static SCARD_ATR_SIZE = 33;
-  static SCARDREADERSTATE_SIZE =
-    (8 + 8 + 4 + 4 + 4 + SCARDREADERSTATE.SCARD_ATR_SIZE);
-
-  constructor(readerName: string) {
-    this.buffer = new Uint8Array(SCARDREADERSTATE.SCARDREADERSTATE_SIZE);
-
-    this.readerName = CSTR.from(readerName);
-
-    this.pUserData = null;
-
-    this.initBuffer();
-  }
-
-  get stateBuffer(): Uint8Array {
-    return this.buffer;
-  }
-
-  get currentState(): DWORD {
-    return new DataView(this.buffer.buffer).getUint32(8 + 8, true);
-  }
-  set currentState(state: DWORD) {
-    new DataView(this.buffer.buffer).setUint32(8 + 8, state, true);
-  }
-  get eventState(): DWORD {
-    return new DataView(this.buffer.buffer).getUint32(8 + 8 + 4, true);
-  }
-
-  get atr(): Uint8Array {
-    const atrLen = new DataView(this.buffer.buffer).getUint32(
-      8 + 8 + 4 + 4,
-      true,
-    );
-
-    const atr = new Uint8Array(atrLen);
-    atr.set(this.buffer.slice(8 + 8 + 4 + 4 + 4, atrLen));
-
-    return atr;
-  }
-
-  private initBuffer() {
     const data = new DataView(this.buffer.buffer);
 
     data.setBigUint64(
       0,
-      Deno.UnsafePointer.of(this.readerName.buffer).valueOf(),
+      Deno.UnsafePointer.of(this.name.buffer).valueOf(),
       true,
     );
-    data.setBigUint64(8, 0n);
-    data.setUint32(8 + 8, 0);
-    data.setUint32(8 + 8 + 4, 0);
-    data.setUint32(8 + 8 + 4 + 4, SCARDREADERSTATE.SCARD_ATR_SIZE);
+
+    data.setUint32(ATR_OFFSET, SCARD_ATR_SIZE);
   }
 }

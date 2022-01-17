@@ -1,11 +1,11 @@
 export class CSTR {
   readonly buffer: Uint8Array;
 
-  protected constructor(init: number | ArrayBuffer | Uint8Array) {
+  protected constructor(init: number | Iterable<number> | Uint8Array) {
     if (typeof init == "number") {
       this.buffer = new Uint8Array(init);
     } else if (init instanceof Uint8Array) {
-      this.buffer = new Uint8Array(init.buffer);
+      this.buffer = init;
     } else {
       this.buffer = new Uint8Array(init);
     }
