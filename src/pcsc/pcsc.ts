@@ -6,8 +6,8 @@ export const INFINITE = 0xFFFFFFFF;
 export type DWORD = number;
 export const DWORD_SIZE = 4;
 
-export type SCARDCONTEXT = number;
-export type SCARDHANDLE = number;
+export type SCARDCONTEXT = DWORD | Deno.UnsafePointer;
+export type SCARDHANDLE = DWORD | Deno.UnsafePointer;
 
 export enum Disposition {
   LeaveCard = 0x0000, /**< SCARD_LEAVE_CARD - Do nothing on close */

@@ -10,7 +10,6 @@ import {
   SCARDHANDLE,
   SCARDREADERSTATE,
   ShareMode,
-  StateFlag,
 } from "../pcsc/pcsc.ts";
 import {
   ATR_OFFSET,
@@ -18,7 +17,7 @@ import {
   SCARDREADERSTATE_SIZE,
 } from "../pcsc/reader-state.ts";
 
-import { toHex } from "../buffer-utils.ts";
+//import { toHex } from "../buffer-utils.ts";
 
 const libPath = {
   "windows": "winscard.dll",
@@ -27,57 +26,153 @@ const libPath = {
 };
 const isWin = (Deno.build.os == "windows");
 
-const HANDLE_SIZE = 4;
+const HANDLE_SIZE = isWin ? 8 : 4;
 
-export const pcsc = Deno.dlopen(
-  libPath[Deno.build.os],
-  {
-    SCardEstablishContext: {
-      parameters: ["u32", "usize", "usize", "pointer"],
-      result: "u32",
-    },
+let func: Record<string, Deno.ForeignFunction> = {
+  SCardEstablishContext: {
+    parameters: ["u32", "usize", "usize", "pointer"],
+    result: "u32",
+  },
+};
+
+if ( !isWin ) {
+  // func = {
+  //   ...func,
+  //   SCardIsValidContext: {
+  //     parameters: ["pointer"],
+  //     result: "u32",
+  //   },
+  //   "SCardCancel": {
+  //     parameters: ["pointer"],
+  //     result: "u32",
+  //   },
+  //   "SCardReleaseContext": {
+  //     parameters: ["pointer"],
+  //     result: "u32",
+  //   },
+  //   SCardListReaders: {
+  //     parameters: ["pointer", "pointer", "pointer", "pointer"],
+  //     result: "u32",
+  //     name: `SCardListReaders${isWin ? "A" : ""}`,
+  //   },
+  //   SCardGetStatusChange: {
+  //     parameters: ["pointer", "u32", "pointer", "u32"],
+  //     nonblocking: true,
+  //     result: "u32",
+  //     name: `SCardListReaders${isWin ? "A" : ""}`,
+  //   },
+  //   SCardConnect: {
+  //     parameters: ["pointer", "pointer", "u32", "u32", "pointer", "pointer"],
+  //     result: "u32",
+  //     name: `SCardConnect${isWin ? "A" : ""}`,
+  //   },
+  //   "SCardReconnect": {
+  //     parameters: ["pointer", "u32", "u32", "u32", "pointer"],
+  //     result: "u32",
+  //   },
+  //   "SCardDisconnect": {
+  //     parameters: ["pointer", "u32"],
+  //     result: "u32",
+  //   },
+  //   "SCardBeginTransaction": {
+  //     parameters: ["pointer", "u32"],
+  //     result: "u32",
+  //   },
+  //   "SCardEndTransaction": {
+  //     parameters: ["pointer", "u32"],
+  //     result: "u32",
+  //   },
+  //   "SCardTransmit": {
+  //     parameters: [
+  //       "usize",
+  //       "pointer",
+  //       "pointer",
+  //       "u32",
+  //       "pointer",
+  //       "pointer",
+  //       "pointer",
+  //     ],
+  //     result: "u32",
+  //   },
+  //   SCardStatus: {
+  //     parameters: [
+  //       "usize",
+  //       "pointer",
+  //       "pointer",
+  //       "pointer",
+  //       "pointer",
+  //       "pointer",
+  //       "pointer",
+  //     ],
+  //     result: "u32",
+  //     name: `SCardStatus${isWin ? "A" : ""}`,
+  //   },
+  //   SCardControl: {
+  //     parameters: [
+  //       "usize",
+  //       "u32",
+  //       "pointer",
+  //       "u32",
+  //       "pointer",
+  //       "u32",
+  //       "pointer",
+  //     ],
+  //     result: "u32",
+  //   },
+  //   SCardGetAttrib: {
+  //     parameters: ["pointer", "u32", "pointer", "pointer"],
+  //     result: "u32",
+  //   },
+  //   SCardSetAttrib: {
+  //     parameters: ["pointer", "u32", "pointer", "u32"],
+  //     result: "u32",
+  //   },
+  // }
+} else {
+  func = {
+    ...func,
     SCardIsValidContext: {
-      parameters: ["usize"],
+      parameters: ["pointer"],
       result: "u32",
     },
     "SCardCancel": {
-      parameters: ["usize"],
+      parameters: ["pointer"],
       result: "u32",
     },
     "SCardReleaseContext": {
-      parameters: ["usize"],
+      parameters: ["pointer"],
       result: "u32",
     },
     SCardListReaders: {
-      parameters: ["usize", "pointer", "pointer", "pointer"],
+      parameters: ["pointer", "pointer", "pointer", "pointer"],
       result: "u32",
       name: `SCardListReaders${isWin ? "A" : ""}`,
     },
     SCardGetStatusChange: {
-      parameters: ["usize", "u32", "pointer", "u32"],
+      parameters: ["pointer", "u32", "pointer", "u32"],
       nonblocking: true,
       result: "u32",
       name: `SCardListReaders${isWin ? "A" : ""}`,
     },
     SCardConnect: {
-      parameters: ["usize", "pointer", "u32", "u32", "pointer", "pointer"],
+      parameters: ["pointer", "pointer", "u32", "u32", "pointer", "pointer"],
       result: "u32",
       name: `SCardConnect${isWin ? "A" : ""}`,
     },
     "SCardReconnect": {
-      parameters: ["usize", "u32", "u32", "u32", "pointer"],
+      parameters: ["pointer", "u32", "u32", "u32", "pointer"],
       result: "u32",
     },
     "SCardDisconnect": {
-      parameters: ["usize", "u32"],
+      parameters: ["pointer", "u32"],
       result: "u32",
     },
     "SCardBeginTransaction": {
-      parameters: ["usize", "u32"],
+      parameters: ["pointer", "u32"],
       result: "u32",
     },
     "SCardEndTransaction": {
-      parameters: ["usize", "u32"],
+      parameters: ["pointer", "u32"],
       result: "u32",
     },
     "SCardTransmit": {
@@ -118,14 +213,19 @@ export const pcsc = Deno.dlopen(
       result: "u32",
     },
     SCardGetAttrib: {
-      parameters: ["usize", "u32", "pointer", "pointer"],
+      parameters: ["pointer", "u32", "pointer", "pointer"],
       result: "u32",
     },
     SCardSetAttrib: {
-      parameters: ["usize", "u32", "pointer", "u32"],
+      parameters: ["pointer", "u32", "pointer", "u32"],
       result: "u32",
     },
-  },
+  };
+}
+
+export const pcsc = Deno.dlopen(
+  libPath[Deno.build.os],
+  func    
 );
 
 function ensureSCardSuccess(rc: unknown, func: string) {
@@ -138,13 +238,14 @@ function ensureSCardSuccess(rc: unknown, func: string) {
 
 export function SCardEstablishContext(scope: DWORD): SCARDCONTEXT {
   const ctx = new Uint8Array(HANDLE_SIZE);
+  const view = new DataView(ctx.buffer);
 
   ensureSCardSuccess(
     pcsc.symbols.SCardEstablishContext(scope, 0, 0, ctx),
     "SCardEstablishContext",
   );
 
-  return new DataView(ctx.buffer).getUint32(0, true);
+  return isWin ? new Deno.UnsafePointer(view.getBigUint64(0,true)) : view.getUint32(0, true);
 }
 
 export function SCardIsValidContext(hContext: SCARDCONTEXT) {
@@ -176,7 +277,7 @@ export function SCardListReaders(
   const readersLen = new Uint8Array(DWORD_SIZE);
 
   if (mszReaders !== null) {
-    new DataView(readersLen.buffer).setUint32(0, mszReaders.length);
+    new DataView(readersLen.buffer).setUint32(0, mszReaders.length, true);
   }
 
   const readerNames = mszReaders?.buffer ?? null;
@@ -202,6 +303,7 @@ export function SCardConnect(
 ): { handle: SCARDHANDLE; protocol: Protocol } {
   const protocol = new Uint8Array(DWORD_SIZE);
   const handle = new Uint8Array(HANDLE_SIZE);
+  const view = new DataView(handle.buffer);
 
   ensureSCardSuccess(
     //    pcsc.symbols.SCardConnectA(
@@ -217,7 +319,7 @@ export function SCardConnect(
   );
 
   return {
-    handle: new DataView(handle.buffer).getUint32(0, true),
+    handle: isWin ? new Deno.UnsafePointer(view.getBigUint64(0,true)) : view.getUint32(0, true),
     protocol: new DataView(protocol.buffer).getUint32(0, true),
   };
 }
@@ -280,7 +382,7 @@ export function SCardTransmit(
 
   const length = new Uint8Array(DWORD_SIZE);
 
-  new DataView(length.buffer).setUint32(0, recvBuffer.length);
+  new DataView(length.buffer).setUint32(0, recvBuffer.length, true);
 
   ensureSCardSuccess(
     pcsc.symbols.SCardTransmit(
@@ -330,7 +432,7 @@ export function SCardCardStatus(
   const readerNamesLen = new Uint8Array(DWORD_SIZE);
 
   if (mszReaderNames !== null) {
-    new DataView(readerNamesLen.buffer).setUint32(0, mszReaderNames.length);
+    new DataView(readerNamesLen.buffer).setUint32(0, mszReaderNames.length, true);
   }
 
   const state = new Uint8Array(DWORD_SIZE);
@@ -338,7 +440,7 @@ export function SCardCardStatus(
   const atrLen = new Uint8Array(DWORD_SIZE);
 
   if (rgbAtr !== null) {
-    new DataView(atrLen.buffer).setUint32(0, rgbAtr.length);
+    new DataView(atrLen.buffer).setUint32(0, rgbAtr.length, true);
   }
 
   ensureSCardSuccess(
@@ -494,6 +596,6 @@ export class SCARDREADERSTATE_FFI extends SCARDREADERSTATE<CSTR, null> {
       true,
     );
 
-    data.setUint32(ATR_OFFSET, SCARD_ATR_SIZE);
+    data.setUint32(ATR_OFFSET, SCARD_ATR_SIZE, true);
   }
 }

@@ -10,6 +10,7 @@ export const ACTUAL_STATE_OFFSET = CURRENT_STATE_OFFSET + DWORD_SIZE;
 export const ATR_OFFSET = ACTUAL_STATE_OFFSET + DWORD_SIZE;
 export const SCARDREADERSTATE_SIZE = ATR_OFFSET + DWORD_SIZE + SCARD_ATR_SIZE;
 
+// deno-lint-ignore no-explicit-any
 export abstract class SCARDREADERSTATE<TNAME=any, TUSERDATA=any> {
   #readerName: TNAME;
   #buffer: Uint8Array;
