@@ -38,7 +38,7 @@ export class Context implements IContext<Card, Reader> {
   protected constructor(context: SCARDCONTEXT) {
     this.#context = context;
     this.#readers = new Map();
-    this.#pnpReader = new Reader(this, "");
+    this.#pnpReader = new Reader(this, CSTR.from("\\?PnP?\Notification"));
   }
 
   getReaders(rescan = false): Promise<Reader[]> {
@@ -62,7 +62,9 @@ export class Context implements IContext<Card, Reader> {
       if (rescan && changed.includes(this.#pnpReader)) {
         const [_, ...readers] = changed;
 
-        await this.#updateReaderList(readers.map((reader) => reader.name));
+        await this.#updateReaderList(
+          readers.map((reader) => reader.readerState.name),
+        );
 
         return readers;
       } else {
@@ -187,23 +189,20 @@ export class Context implements IContext<Card, Reader> {
             : []
         );
 
-      const names = readerNames.map((r) => r.toString());
-
-      console.log(names);
-
       this.#updating = true;
       try {
-        await this.#updateReaderList(names);
+        await this.#updateReaderList(readerNames);
       } finally {
         this.#updating = false;
       }
     }
   }
 
-  async #updateReaderList(names: string[]) {
+  async #updateReaderList(readerNames: CSTR[]) {
     const actualNames = Array.from(this.#readers.keys());
 
-    const addedNames = names.filter((n) => !actualNames.includes(n));
+    const names = readerNames.map((r) => r.toString());
+
     const removedNames = actualNames.filter((n) => !names.includes(n));
 
     for (const name of removedNames) { //ach( async (name) => {
@@ -218,11 +217,14 @@ export class Context implements IContext<Card, Reader> {
       }
     }
 
+    const addedNames = readerNames.filter((n) =>
+      !actualNames.includes(n.toString())
+    );
     const addedReaders: Reader[] = [];
     for (const name of addedNames) {
       const reader = new Reader(this, name);
 
-      this.#readers.set(name, reader);
+      this.#readers.set(name.toString(), reader);
 
       addedReaders.push(reader);
     }
@@ -285,12 +287,14 @@ export class Reader implements IReader<Card> {
 
   constructor(
     public readonly context: Context,
-    readerName: string,
+    readerName: CSTR,
   ) {
     this.#state = new native.SCARDREADERSTATE_FFI(
-      CSTR.from(readerName),
+      readerName,
       null,
-      () => { this.#updateState() },
+      () => {
+        this.#updateState();
+      },
     );
     this.#status = "setup";
   }
@@ -349,7 +353,7 @@ export class Reader implements IReader<Card> {
     const event = this.#state.eventState;
     const status = this.#status;
 
-    console.log(`updateState: cur=${current.toString(16)} event=${event}` );
+    console.log(`updateState: cur=${current.toString(16)} event=${event}`);
 
     if (this.#status == "shutdown") {
       // we're dead
@@ -364,15 +368,12 @@ export class Reader implements IReader<Card> {
     if (event & StateFlag.Present) {
       if (event & StateFlag.Inuse) {
         this.#status = "connected";
-      }
-      else if (event & StateFlag.Mute) {
+      } else if (event & StateFlag.Mute) {
         this.#status = "mute";
-      }
-      else {//if (event & StateFlag.Unpowered) {
+      } else { //if (event & StateFlag.Unpowered) {
         this.#status = "present";
       }
-    }
-    else if (event & StateFlag.Empty) {
+    } else if (event & StateFlag.Empty) {
       this.#status = "empty";
     }
 
@@ -386,7 +387,6 @@ export class Reader implements IReader<Card> {
       this.onStatusChange(this, this.status);
     }
   }
-
 }
 
 /**

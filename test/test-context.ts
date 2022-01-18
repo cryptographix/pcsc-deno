@@ -21,6 +21,11 @@ context.onStatusChange = async (reader, status) => {
   // }
 };
 
+if ( ( await context.getReaders(true) ).length == 0 ) {
+  console.log( "Attach Reader" );
+  await context.waitForChange([], 10000, true);
+}
+
 console.log(`Readers:[ ${(await context.getReaders(true)).map((r)=>r.name).join(", ")} ]`);
 
 for( const reader of await context.getReaders() ) {
