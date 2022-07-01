@@ -111,9 +111,9 @@ export class CommandAPDU {
     const le = (lc == 0 || !isT0) ? (this.le ?? 0) : 0;
 
     const len = 4 +
-      ((lc == 0) ? 0 : ((isExtended) ? 1 : 3)) +
+      ((lc == 0) ? 0 : (isExtended ? 3 : 1)) +
       lc +
-      ((le == 0) ? 0 : ((isExtended) ? 1 : 3));
+      ((le == 0) ? 0 : (isExtended ? 3 : 1));
 
     const raw = new Uint8Array(len);
 

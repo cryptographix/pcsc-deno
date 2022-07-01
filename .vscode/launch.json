@@ -10,7 +10,7 @@
       "type": "pwa-node",
       "program": "${workspaceFolder}/test/test-context.ts",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "deno",
+      "runtimeExecutable": "/Users/sean/.deno/bin/deno",
       "runtimeArgs": [
         "run",
         "--unstable",

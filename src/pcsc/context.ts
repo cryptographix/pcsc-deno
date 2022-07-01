@@ -12,8 +12,7 @@ export type ReaderStatus =
 
 export type ReaderStatusChangeHandler<CARD extends Card, READER extends Reader<CARD>> = (reader: READER, status: ReaderStatus)=>void;
 
-// deno-lint-ignore no-explicit-any
-export interface Context<CARD extends Card = any, READER extends Reader<CARD> = Reader<CARD>> {
+export interface Context<CARD extends Card = Card, READER extends Reader<CARD> = Reader<CARD>> {
   getReaders(rescan: boolean): Promise<READER[]>;
 
   onStatusChange?: ReaderStatusChangeHandler<CARD, READER>;
@@ -38,6 +37,10 @@ export interface Reader<CARD extends Card = Card> {
   onStatusChange?: ReaderStatusChangeHandler<CARD, this>;
 
   waitForChange(timeout?: DWORD): Promise<ReaderStatus>;
+
+  isPresent: boolean;
+  isConnected: boolean;
+  isMute: boolean;
 }
 
 export interface Card {

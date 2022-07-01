@@ -1,4 +1,5 @@
 import { CSTR, nativeDenoFFI as lib, PCSC } from "../mod.ts";
+import { SCARDREADERSTATE_FFI } from "../src/deno-pcsc-ffi/pcsc-ffi.ts";
 
 const ctx = lib.SCardEstablishContext(PCSC.Scope.System);
 console.log("Context:", ctx);
@@ -18,7 +19,7 @@ const readerNameOffsets = readerNames.buffer.reduce<number[]>(
 
 const readerNameArray = readerNameOffsets.flatMap<CSTR>((val, index, array) => {
   return (index < array.length - 1)
-    ? CSTR.fromNullTerminated(readerNames.buffer.slice(val, array[index + 1]))
+    ? CSTR.fromNullTerminated(readerNames.buffer.slice(val, array[index + 1]+1))
     : [];
 });
 
@@ -39,6 +40,6 @@ const selectFile = [ 0x00, 0xA4, 0x04, 0x00, 0x07, 0xA0, 0x00, 0x00, 0x01, 0x54,
 const rapdu = lib.SCardTransmit(card, Uint8Array.from(selectFile), 256);
 console.log(rapdu);
 
-const state = new lib.SCARDREADERSTATE(readerNameArray[0]);
+const state = new SCARDREADERSTATE_FFI(readerNameArray[0]);
 const res = await lib.SCardGetStatusChange(ctx, 100, [state]);
 console.log(res);

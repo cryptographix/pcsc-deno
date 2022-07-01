@@ -1,18 +1,17 @@
-import { CommandAPDU, Context, Reader, PCSC } from "../mod.ts";
+import { CommandAPDU, FFIContext, PCSC, Reader } from "../mod.ts";
 
 const hex = (bytes: Uint8Array) =>
   Array.from(bytes).map((e) => ("00" + e.toString(16).toUpperCase()).slice(-2))
     .join(" ");
 
-const context = Context.establishContext();
+const context = FFIContext.establishContext();
 console.log(context);
 
 context.onStatusChange = async (reader, status) => {
   console.log(`Event ${status} for reader ${reader.name}`);
 
   console.log(
-    `Readers: [${
-      (await context.getReaders()).map((reader) => reader.name).join(",")
+    `Readers: [${(await context.getReaders()).map((reader) => reader.name).join(",")
     }]`,
   );
 
@@ -21,20 +20,20 @@ context.onStatusChange = async (reader, status) => {
   // }
 };
 
-if ( ( await context.getReaders(true) ).length == 0 ) {
-  console.log( "Attach Reader" );
+if ((await context.getReaders(true)).length == 0) {
+  console.log("Attach Reader");
   await context.waitForChange([], 10000, true);
 }
 
-console.log(`Readers:[ ${(await context.getReaders(true)).map((r)=>r.name).join(", ")} ]`);
+console.log(`Readers:[ ${(await context.getReaders(true)).map((r) => r.name).join(", ")} ]`);
 
-for( const reader of await context.getReaders() ) {
+for (const reader of await context.getReaders()) {
   await testReader(reader);
 }
 
 async function testReader(reader: Reader): Promise<void> {
-  reader.onStatusChange = (reader,status) => {
-    console.log( `${reader.name} changed to ${status}`);
+  reader.onStatusChange = (reader, status) => {
+    console.log(`${reader.name} changed to ${status}`);
 
     console.log(
       (reader as unknown as { readerState: { currentState: number } })
@@ -58,7 +57,7 @@ async function testReader(reader: Reader): Promise<void> {
     const selectMF = CommandAPDU.from([0x00, 0xA4, 0x00, 0x00])
       .setData([0x3f, 0x00]);
 
-    console.log(hex(selectMF.toBytes()));
+    console.log(hex(selectFile.toBytes()));
     let rapdu = await card.transmitAPDU(selectFile);
 
     console.log(hex(rapdu.toBytes()));

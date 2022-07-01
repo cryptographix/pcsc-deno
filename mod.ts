@@ -3,9 +3,7 @@ export * from "./src/iso7816/ber-tlv.ts";
 export * from "./src/iso7816/std.ts";
 
 export * as PCSC from "./src/pcsc/pcsc.ts";
-export type {ReaderStatus, ReaderStatusChangeHandler} from "./src/pcsc/context.ts";
-
-
+export type {Reader, Context, Card, ReaderStatus, ReaderStatusChangeHandler} from "./src/pcsc/context.ts";
 
 export * as OMAPI from "./src/omapi/omapi.ts";
 export {SECommand, SEResponse, SEService} from "./src/omapi/se-service.ts";

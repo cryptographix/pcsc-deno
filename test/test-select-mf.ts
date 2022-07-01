@@ -1,20 +1,19 @@
-import { CommandAPDU, Context, PCSC } from "../mod.ts"; // "https://<pcsc-deno-repo>/mod.ts";
+import { CommandAPDU, FFIContext, PCSC } from "../mod.ts"; // "https://<pcsc-deno-repo>/mod.ts";
 
-const context = Context.establishContext();
+const context = FFIContext.establishContext();
+await context.waitForChange();
 
-const readerNames = context.listReaderNames();
-console.log(`Readers:[${readerNames.join(",")}]`);
-
-const readers = context.listReaders();
+const readers = await context.getReaders();
+console.log(`Readers:[${readers.map(r=>r.name).join(",")}]`);
 
 for (const reader of readers) {
-  if (await reader.isPresent) {
-    const card = reader.connect();
+  if (reader.isPresent) {
+    const card = await reader.connect();
 
     const selectMF = CommandAPDU.from([0x00, 0xA4, 0x00, 0x00])
       .setData([0x3f, 0x00]);
 
-    const resp = card.transmitAPDU(selectMF);
+    const resp = await card.transmitAPDU(selectMF);
 
     if (resp.SW == 0x9000) {
       // success ..
@@ -23,7 +22,7 @@ for (const reader of readers) {
       console.error(`Reader ${reader.name}: error ${resp.SW}`);
     }
 
-    card.disconnect(PCSC.SCARD_RESET_CARD);
+    card.disconnect(PCSC.Disposition.ResetCard);
   }
 }
 
