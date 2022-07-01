@@ -1,5 +1,5 @@
-//import { SmartCardException } from "./errors.ts";
-import { BytesLike, toHex, toUint8Array } from "../buffer-utils.ts";
+//import { SmartCardException } from './errors.ts';
+import { BytesLike, HEX, toUint8Array } from '../buffer-utils.ts';
 
 export class SmartCardException extends Error {
 }
@@ -33,13 +33,13 @@ export class CommandAPDU {
 
   public toString(): string {
     let s = "CommandAPDU ";
-    s += "cla=0x" + toHex([this.cla]);
-    s += "," + "ins=0x" + toHex([this.ins]);
-    s += "," + "p1=0x" + toHex([this.p1]);
-    s += "," + "p2=0x" + toHex([this.p2]);
+    s += "cla=0x" + HEX.toString([this.cla]);
+    s += "," + "ins=0x" + HEX.toString([this.ins]);
+    s += "," + "p1=0x" + HEX.toString([this.p1]);
+    s += "," + "p2=0x" + HEX.toString([this.p2]);
     if (this.data && this.data.length) {
       s += "," + "Lc=" + this.Lc;
-      s += "," + "Data=" + toHex(this.data);
+      s += "," + "Data=" + HEX.toString(this.data);
     }
     if (this.le) {
       s += "," + "Le=" + this.le;
@@ -207,10 +207,10 @@ export class ResponseAPDU {
 
   public toString(): string {
     let s = "ResponseAPDU ";
-    s += "SW=0x" + toHex([this.SW >> 8, this.SW & 0xff], false);
+    s += "SW=0x" + HEX.toString([this.SW >> 8, this.SW & 0xff], false);
     if (this.data && this.data.length) {
       s += "," + "La=" + this.La;
-      s += "," + "Data=" + toHex(this.data);
+      s += "," + "Data=" + HEX.toString(this.data);
     }
     if (this.description) {
       s += " (" + this.description + ")";

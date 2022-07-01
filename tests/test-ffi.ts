@@ -1,5 +1,5 @@
-import { CSTR, nativeDenoFFI as lib, PCSC } from "../mod.ts";
-import { SCARDREADERSTATE_FFI } from "../src/deno-pcsc-ffi/pcsc-ffi.ts";
+import { CSTR, nativeDenoFFI as lib, PCSC} from '../mod.ts';
+import { SCARDREADERSTATE_FFI } from '../src/deno-pcsc-ffi/pcsc-ffi.ts';
 
 const ctx = lib.SCardEstablishContext(PCSC.Scope.System);
 console.log("Context:", ctx);

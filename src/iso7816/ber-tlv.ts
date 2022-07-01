@@ -1,4 +1,4 @@
-import { BytesLike, toUint8Array } from "./../buffer-utils.ts";
+import { BytesLike, toUint8Array } from './../buffer-utils.ts';
 
 type ByteArray = Uint8Array;
 

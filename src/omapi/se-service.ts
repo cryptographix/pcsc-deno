@@ -1,7 +1,7 @@
-import * as OMAPI from "../omapi/omapi.ts";
+import * as OMAPI from '../omapi/omapi.ts';
 
-import { CommandAPDU, ResponseAPDU } from "../iso7816/apdu.ts";
-import { Card, Context, Reader as PCSCReader } from "../pcsc/context.ts";
+import { CommandAPDU, ResponseAPDU } from '../iso7816/apdu.ts';
+import { Card, Context, Reader as PCSCReader } from '../pcsc/context.ts';
 
 export class SEService implements OMAPI.SEService {
   #contexts: Context[] = [];

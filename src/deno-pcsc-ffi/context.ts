@@ -1,8 +1,8 @@
-import { Card, Context, Reader, ReaderStatusChangeHandler } from "../pcsc/context.ts";
-import { SCARD_ERROR_TIMEOUT, SCARDCONTEXT, Scope, StateFlag } from "../pcsc/pcsc.ts";
+import { Card, Context, Reader, ReaderStatusChangeHandler } from '../pcsc/context.ts';
+import { SCARD_ERROR_TIMEOUT, SCARDCONTEXT, Scope, StateFlag } from '../pcsc/pcsc.ts';
 
-import * as native from "./pcsc-ffi.ts";
-import { CSTR } from "./ffi-utils.ts";
+import * as native from './pcsc-ffi.ts';
+import { CSTR } from './ffi-utils.ts';
 
 import { FFIReader } from './reader.ts';
 

@@ -28,7 +28,7 @@ Built-in support for auto-reading **card UIDs** and reading tags emulated with
 # High level usage
 
 ```typescript
-import { CommandAPDU, Context, PCSC } from "https://<pcsc-deno-repo>/mod.ts";
+import { CommandAPDU, Context, PCSC } from 'https://<pcsc-deno-repo>/mod.ts';
 
 const context = Context.establishContext();
 

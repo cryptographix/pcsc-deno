@@ -1,17 +1,17 @@
 import {
   Card,
   Reader, ReaderStatus, ReaderStatusChangeHandler,
-} from "../pcsc/context.ts";
+} from '../pcsc/context.ts';
 
 import {
   DWORD, Protocol, SCARDREADERSTATE, ShareMode, StateFlag
-} from "../pcsc/pcsc.ts";
+} from '../pcsc/pcsc.ts';
 
-import * as native from "./pcsc-ffi.ts";
-import { CSTR } from "./ffi-utils.ts";
-import { SmartCardException } from "../iso7816/apdu.ts";
+import * as native from './pcsc-ffi.ts';
+import { CSTR } from './ffi-utils.ts';
+import { SmartCardException } from '../iso7816/apdu.ts';
 
-import { FFIContext } from "./context.ts";
+import { FFIContext } from './context.ts';
 import { FFICard } from './card.ts';
 
 /**

@@ -1,4 +1,4 @@
-import { CommandAPDU, FFIContext, PCSC } from "../mod.ts"; // "https://<pcsc-deno-repo>/mod.ts";
+import { CommandAPDU, FFIContext, PCSC } from '../mod.ts'; // "https://<pcsc-deno-repo>/mod.ts';
 
 const context = FFIContext.establishContext();
 await context.waitForChange();

@@ -1,5 +1,5 @@
-import { Disposition, Protocol, ShareMode, StateFlag, DWORD } from "./pcsc.ts";
-import { CommandAPDU, ResponseAPDU } from "../iso7816/apdu.ts";
+import { Disposition, Protocol, ShareMode, StateFlag, DWORD } from './pcsc.ts';
+import { CommandAPDU, ResponseAPDU } from '../iso7816/apdu.ts';
 
 export type ReaderStatus =
   | "setup"

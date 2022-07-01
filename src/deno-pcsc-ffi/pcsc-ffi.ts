@@ -1,4 +1,4 @@
-import { CSTR } from "./ffi-utils.ts";
+import { CSTR } from './ffi-utils.ts';
 import {
   CardStatus,
   Disposition,
@@ -10,14 +10,14 @@ import {
   SCARDHANDLE,
   SCARDREADERSTATE,
   ShareMode,
-} from "../pcsc/pcsc.ts";
+} from '../pcsc/pcsc.ts';
 import {
   ATR_OFFSET,
   SCARD_ATR_SIZE,
   SCARDREADERSTATE_SIZE,
-} from "../pcsc/reader-state.ts";
+} from '../pcsc/reader-state.ts';
 
-import { toHex } from "../buffer-utils.ts";
+import { HEX } from '../buffer-utils.ts';
 
 const libPath = {
   "windows": "winscard.dll",
@@ -35,7 +35,7 @@ let func: Record<string, Deno.ForeignFunction> = {
   },
 };
 
-if ( isWin ) {
+if (isWin) {
   func = {
     ...func,
     SCardIsValidContext: {
@@ -223,9 +223,9 @@ if ( isWin ) {
   }
 }
 
-export const pcsc = Deno.dlopen(
+const pcsc = Deno.dlopen(
   libPath[Deno.build.os],
-  func    
+  func
 );
 
 function ensureSCardSuccess(rc: unknown, func: string) {
@@ -245,7 +245,7 @@ export function SCardEstablishContext(scope: DWORD): SCARDCONTEXT {
     "SCardEstablishContext",
   );
 
-  return isWin ? view.getBigUint64(0,true) : view.getUint32(0, true);
+  return isWin ? view.getBigUint64(0, true) : view.getUint32(0, true);
 }
 
 export function SCardIsValidContext(hContext: SCARDCONTEXT) {
@@ -319,7 +319,7 @@ export function SCardConnect(
   );
 
   return {
-    handle: isWin ? view.getBigUint64(0,true) : view.getUint32(0, true),
+    handle: isWin ? view.getBigUint64(0, true) : view.getUint32(0, true),
     protocol: new DataView(protocol.buffer).getUint32(0, true),
   };
 }
@@ -360,9 +360,6 @@ export function SCardDisconnect(
     "SCardDisconnect",
   );
 }
-
-//type LPCSCARD_IO_REQUEST = null;
-//type LPSCARD_IO_REQUEST = null;
 
 export function SCardTransmit(
   hCard: SCARDHANDLE,
@@ -485,7 +482,7 @@ export function SCardGetStatusChange(
   // and 64 bits), so we pack an array manually instead.
   // const size = int(unsafe.Sizeof(states[0])) - 3
 
-  console.log("I", toHex(stateBuffer));
+  console.log("I", HEX.toString(stateBuffer));
 
   //  const func = pcsc.symbols.SCardGetStatusChangeA(
   const func = pcsc.symbols.SCardGetStatusChange(
@@ -501,7 +498,7 @@ export function SCardGetStatusChange(
       return res;
     }
 
-    console.log("O", toHex(stateBuffer));
+    console.log("O", HEX.toString(stateBuffer));
 
     //   switch (res) {
     //   case SCARD_ERROR_TIMEOUT:
@@ -593,7 +590,7 @@ export class SCARDREADERSTATE_FFI extends SCARDREADERSTATE<CSTR, null> {
     data.setBigUint64(
       0,
       Deno.UnsafePointer.of(this.name.buffer).valueOf(),
-      isWin||true,
+      true,
     );
 
     data.setUint32(ATR_OFFSET, SCARD_ATR_SIZE, isWin);

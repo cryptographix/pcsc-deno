@@ -1,4 +1,4 @@
-import { StateFlag, StateFlags } from "./pcsc.ts";
+import { StateFlag, StateFlags } from './pcsc.ts';
 
 export const DWORD_SIZE = 4;
 export const POINTER_SIZE = 8; // 64 bits only

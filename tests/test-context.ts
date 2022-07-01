@@ -1,8 +1,4 @@
-import { CommandAPDU, FFIContext, PCSC, Reader } from "../mod.ts";
-
-const hex = (bytes: Uint8Array) =>
-  Array.from(bytes).map((e) => ("00" + e.toString(16).toUpperCase()).slice(-2))
-    .join(" ");
+import { CommandAPDU, FFIContext, PCSC, Reader, HEX } from '../mod.ts';
 
 const context = FFIContext.establishContext();
 console.log(context);
@@ -57,15 +53,15 @@ async function testReader(reader: Reader): Promise<void> {
     const selectMF = CommandAPDU.from([0x00, 0xA4, 0x00, 0x00])
       .setData([0x3f, 0x00]);
 
-    console.log(hex(selectFile.toBytes()));
+    console.log(HEX.toString(selectFile.toBytes()));
     let rapdu = await card.transmitAPDU(selectFile);
 
-    console.log(hex(rapdu.toBytes()));
+    console.log(HEX.toString(rapdu.toBytes()));
 
     rapdu = await card.transmitAPDU(
       CommandAPDU.from([0x00, 0xC0, 0x00, 0x00, rapdu.SW & 0xff]),
     );
-    console.log(hex(rapdu.toBytes()));
+    console.log(HEX.toString(rapdu.toBytes()));
 
     await card.reconnect(PCSC.ShareMode.Exclusive);
     console.log("reconnected");
