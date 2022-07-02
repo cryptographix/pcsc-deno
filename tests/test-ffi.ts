@@ -1,22 +1,7 @@
+import { Logger } from './logger.ts';
 import { CSTR, nativeDenoFFI as lib, PCSC, HEX } from '../mod.ts';
 import { SCARDREADERSTATE_FFI } from '../src/deno-pcsc-ffi/pcsc-ffi.ts';
-import { assert, assertEquals, assertExists, assertFalse } from "https://deno.land/std@0.146.0/testing/asserts.ts";
-
-
-const verbose = (Deno.args.includes('--verbose'));
-const info = (Deno.args.includes('--info'));
-
-const LOG = {
-  info(...args: unknown[]) {
-    if (info)
-      console.log(...args);
-  },
-
-  detail(...args: unknown[]) {
-    if (verbose)
-      console.log(...args);
-  },
-}
+import { assert, assertEquals, assertExists } from 'https://deno.land/std@0.146.0/testing/asserts.ts';
 
 function getContext(needReader = true) {
   const context = lib.SCardEstablishContext(PCSC.Scope.System);
@@ -59,9 +44,10 @@ async function findCards() {
     const changed = await lib.SCardGetStatusChange(context, 0, [state]);
 
     if (changed.length != 0) {
-      const state = changed[0].currentState;
+      const stateFlags = changed[0].currentState & (PCSC.StateFlag.Present|PCSC.StateFlag.Mute);
 
-      if (state & PCSC.StateFlag.Present) {
+      // Ignore MUTE cards
+      if (stateFlags == PCSC.StateFlag.Present) {
         readersWithCard.push(readerName);
       }
     }
@@ -77,8 +63,8 @@ async function findCards() {
 Deno.test("Can establish context and list readers", () => {
   const { context, readers } = getContext();
 
-  LOG.info("Readers:", readers.map((r) => r.toString()).join(","));
-  LOG.detail("Context Handle", context.valueOf());
+  Logger.info("Readers:", readers.map((r) => r.toString()).join(","));
+  Logger.detail("Context Handle", context.valueOf());
 
   lib.SCardReleaseContext(context);
 });
@@ -88,7 +74,7 @@ Deno.test("Correctly handles initial GetStatusChange", async (test) => {
 
   for (const reader of readers) {
     await test.step(`Test reader: ${reader}`, async () => {
-      const state = new SCARDREADERSTATE_FFI(readers[0]);
+      const state = new SCARDREADERSTATE_FFI(reader);
       const changed = await lib.SCardGetStatusChange(context, 0, [state]);
 
       assertExists(changed, "returns SCARDREADERSTATE[]");
@@ -102,6 +88,7 @@ Deno.test("Correctly handles initial GetStatusChange", async (test) => {
 
 async function noReaderWithCardPresent() {
   const { context, readersWithCard } = await findCards();
+
 
   lib.SCardReleaseContext(context);
 
@@ -158,7 +145,7 @@ function testReaderConnectDisconnect(context: PCSC.SCARDCONTEXT, reader: CSTR) {
   assert(card, "connected");
   assert([1, 2].includes(protocol), "Protocol T=0/T=1")
 
-  LOG.detail("Card Handle", card.valueOf(), "Protocol: ", protocol);
+  Logger.detail("Card Handle", card.valueOf(), "Protocol: ", protocol);
 
   // Reconnect with same protocol
   const { protocol: reconProtocol } = lib.SCardReconnect(
@@ -168,7 +155,7 @@ function testReaderConnectDisconnect(context: PCSC.SCARDCONTEXT, reader: CSTR) {
     PCSC.Disposition.LeaveCard
   );
 
-  assertEquals(protocol, reconProtocol, "Same protocol after reconnect LEAVE")
+  assertEquals(protocol, reconProtocol, "Same protocol after RECONNECT+LEAVE")
 
   // Disconnect
   lib.SCardDisconnect(
@@ -183,7 +170,7 @@ async function testReaderStatusChange(context: PCSC.SCARDCONTEXT, reader: CSTR) 
   const flagMask = PCSC.StateFlag.Present | PCSC.StateFlag.Inuse | PCSC.StateFlag.Mute | PCSC.StateFlag.Exclusive;
 
   await lib.SCardGetStatusChange(context, 0, [state]);
-  LOG.detail("Initial state", state.eventState.toString(16));
+  Logger.detail("Initial state", state.eventState.toString(16));
 
   // Connect + POWER OFF
   const { handle: card1 } = lib.SCardConnect(
@@ -195,7 +182,7 @@ async function testReaderStatusChange(context: PCSC.SCARDCONTEXT, reader: CSTR) 
 
   // PRESENT + INUSE
   let changed = await lib.SCardGetStatusChange(context, 0, [state]);
-  LOG.detail("State after initial Connect", state.currentState.toString(16));
+  Logger.detail("State after initial CONNECT", state.currentState.toString(16));
   assertEquals(changed.length, 1, "GetStatusChange() returns changed READERSTATE");
   assertEquals(changed[0], state, "GetStatusChange() returns state object");
   assertEquals(state.eventState & PCSC.StateFlag.Changed, PCSC.StateFlag.Changed, "GetStatusChange(): eventState includes CHANGED");
@@ -203,7 +190,7 @@ async function testReaderStatusChange(context: PCSC.SCARDCONTEXT, reader: CSTR) 
 
   // try again -> should be TIMEOUT (no changeset)
   changed = await lib.SCardGetStatusChange(context, 100, [state]);
-  LOG.detail("State after (nochange))", state.currentState.toString(16));
+  Logger.detail("State after no-change", state.currentState.toString(16));
   assertEquals(changed.length, 0, "NO CHANGE -> GetStatusChange() = timeout (changed = [])");
 
   // disconnect
@@ -212,13 +199,12 @@ async function testReaderStatusChange(context: PCSC.SCARDCONTEXT, reader: CSTR) 
     PCSC.Disposition.UnpowerCard
   );
   changed = await lib.SCardGetStatusChange(context, 100, [state]);
-  LOG.detail("State after disconnect)", state.currentState.toString(16));
+  Logger.detail("State after DISCONNECT:UNPOWER", state.currentState.toString(16));
   assertEquals(changed.length, 1, "DISCONNECT -> GetStatusChange() returns changed READERSTATE");
   assertEquals(state.eventState & PCSC.StateFlag.Changed, PCSC.StateFlag.Changed, "GetStatusChange(): eventState includes CHANGED");
 
-  // PRESENT + NOT INUSE
   await lib.SCardGetStatusChange(context, 0, [state]);
-  LOG.detail("State (after POWEROFF)", state.currentState.toString(16));
+  Logger.detail("State after no-change", state.currentState.toString(16));
   assertEquals(state.currentState & flagMask, PCSC.StateFlag.Present, "POWEROFF ->  present and not in-use")
 
   // Connect (SHARED)
@@ -230,7 +216,7 @@ async function testReaderStatusChange(context: PCSC.SCARDCONTEXT, reader: CSTR) 
   );
 
   await lib.SCardGetStatusChange(context, 10, [state]);
-  LOG.detail("State (after CONNECT)", state.currentState.toString(16));
+  Logger.detail("State after CONNECT+SHARED", state.currentState.toString(16));
   assertEquals(state.currentState & flagMask, PCSC.StateFlag.Present | PCSC.StateFlag.Inuse, "Connect(SHARED) -> present & in-use")
 
   // Reconnect (EXCLUSIVE)
@@ -241,9 +227,10 @@ async function testReaderStatusChange(context: PCSC.SCARDCONTEXT, reader: CSTR) 
     PCSC.Disposition.LeaveCard
   );
 
+  // Windows includes "InUse" with Exclusive, OS/X does not!
   await lib.SCardGetStatusChange(context, 10, [state]);
-  LOG.detail("State after RECONNECT EXCLUSIVE", state.currentState.toString(16));
-  assertEquals(state.currentState & (flagMask | PCSC.StateFlag.Changed), PCSC.StateFlag.Present | PCSC.StateFlag.Exclusive, "Reconnect(EXCLUSIVE) -> present & in-use & exclusive")
+  Logger.detail("State after RECONNECT+EXCLUSIVE", state.currentState.toString(16));
+  assertEquals(state.currentState & flagMask & ~PCSC.StateFlag.Inuse, PCSC.StateFlag.Present | PCSC.StateFlag.Exclusive, "Reconnect(EXCLUSIVE) -> present & exclusive")
 
   // Disconnect
   lib.SCardDisconnect(
@@ -252,16 +239,16 @@ async function testReaderStatusChange(context: PCSC.SCARDCONTEXT, reader: CSTR) 
   );
 
   await lib.SCardGetStatusChange(context, 10, [state]);
-  LOG.detail("State after disconnect(LEAVE)", state.currentState.toString(16));
+  Logger.detail("State after DISCONNECT+LEAVE", state.currentState.toString(16));
   assertEquals(state.currentState & flagMask, PCSC.StateFlag.Present, "Disconnect(LEAVE) -> present");
 }
 
 function testCardSelectMF(card: PCSC.SCARDHANDLE) {
   const selectMF = [0x00, 0xA4, 0x00, 0x00, 0x02, 0x3F, 0x00];
-  LOG.detail(`Transmit: Select MF (${HEX.toString(selectMF)})`);
+  Logger.detail(`Transmit: Select MF (${HEX.toString(selectMF)})`);
 
   const rapdu = lib.SCardTransmit(card, Uint8Array.from(selectMF), 256);
-  LOG.detail(`Received: (${HEX.toString(rapdu)})`);
+  Logger.detail(`Received: (${HEX.toString(rapdu)})`);
 
   assertEquals(HEX.toString(rapdu), "90 00", "Select MF returns 0x9000");
 }

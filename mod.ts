@@ -1,16 +1,20 @@
-export * from './src/iso7816/apdu.ts';
-export * from './src/iso7816/ber-tlv.ts';
+export { HEX } from './src/buffer-utils.ts';
+
 import * as ISO7816 from './src/iso7816/std.ts';
 export { ISO7816 };
-export * from './src/buffer-utils.ts';
+export * from './src/iso7816/apdu.ts';
+export * from './src/iso7816/ber-tlv.ts';
 
 export * as PCSC from './src/pcsc/pcsc.ts';
-export type {Reader, Context, Card, ReaderStatus, ReaderStatusChangeHandler} from './src/pcsc/context.ts';
+export type { Reader, Context, Card, ReaderStatus, ReaderStatusChangeHandler } from './src/pcsc/context.ts';
 
 export * as OMAPI from './src/omapi/omapi.ts';
-export {SECommand, SEResponse, SEService} from './src/omapi/se-service.ts';
+export { SECommand, SEResponse, SEService } from './src/omapi/se-service.ts';
 
-export * from './src/deno-pcsc-ffi/context.ts';
+// FFI classes
+export { FFIContext } from './src/deno-pcsc-ffi/context.ts';
+export { FFIReader } from './src/deno-pcsc-ffi/reader.ts';
+export { FFICard } from './src/deno-pcsc-ffi/card.ts';
 
 // native interface
 export { CSTR } from './src/deno-pcsc-ffi/ffi-utils.ts';
