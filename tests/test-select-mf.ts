@@ -1,28 +1,37 @@
-import { CommandAPDU, FFIContext, PCSC } from '../mod.ts'; // "https://<pcsc-deno-repo>/mod.ts';
+import { FFIContext, PCSC, CommandAPDU, ISO7816, HEX } from '../mod.ts';
+//import { FFIContext, PCSC, CommandAPDU, ISO7816, HEX } from 'https://<pcsc-deno-repo>/mod.ts';
 
 const context = FFIContext.establishContext();
-await context.waitForChange();
 
-const readers = await context.getReaders();
-console.log(`Readers:[${readers.map(r=>r.name).join(",")}]`);
+const readers = await context.listReaders();
 
 for (const reader of readers) {
-  if (reader.isPresent) {
+  if (reader.isMute) {
+    console.log(`Reader ${reader.name}: MUTE`)
+  }
+  else if (reader.isPresent) {
     const card = await reader.connect();
 
-    const selectMF = CommandAPDU.from([0x00, 0xA4, 0x00, 0x00])
-      .setData([0x3f, 0x00]);
+    const selectMF = CommandAPDU
+      .from([ISO7816.CLA.ISO, ISO7816.INS.SelectFile, 0x00, 0x00]) // ISO SELECT
+      .setData([0x3f, 0x00]);         // #3F 00 = MF
 
     const resp = await card.transmitAPDU(selectMF);
 
-    if (resp.SW == 0x9000) {
+    if (resp.SW == ISO7816.SW.SUCCESS) {
       // success ..
-      console.log(`Reader ${reader.name}: MF selected`);
+      console.log(`Reader ${reader.name}: MF successfully selected`);
+
+      console.log(HEX.toString(resp.data));
     } else {
-      console.error(`Reader ${reader.name}: error ${resp.SW}`);
+      // something went wrong .. 
+      console.error(`Reader ${reader.name}: error SW=${resp.SW.toString(16)}`);
     }
 
-    card.disconnect(PCSC.Disposition.ResetCard);
+    await card.disconnect(PCSC.Disposition.UnpowerCard);
+  }
+  else {
+    console.log(`Reader ${reader.name}: NO CARD`)
   }
 }
 

@@ -10,37 +10,37 @@ export type ReaderStatus =
   | "reset"
   | "shutdown";
 
-export type ReaderStatusChangeHandler<CARD extends Card, READER extends Reader<CARD>> = (reader: READER, status: ReaderStatus)=>void;
+export type ReaderStatusChangeHandler = (reader: Reader, status: ReaderStatus)=>void;
 
-export interface Context<CARD extends Card = Card, READER extends Reader<CARD> = Reader<CARD>> {
-  getReaders(rescan: boolean): Promise<READER[]>;
+export interface Context { //<Card extends Card = Card, Reader extends Reader<Card> = Reader<Card>> {
+  listReaders(rescan: boolean): Promise<Reader[]>;
 
-  onStatusChange?: ReaderStatusChangeHandler<CARD, READER>;
+  onStatusChange?: ReaderStatusChangeHandler;
 
   waitForChange(
-    readers: READER[],
+    readers: Reader[],
     timeout?: DWORD,
     rescan?: boolean,
-  ): Promise<READER[]>;
+  ): Promise<Reader[]>;
 
   shutdown(): Promise<void>;
 }
 
-export interface Reader<CARD extends Card = Card> {
+export interface Reader {
   readonly name: string;
 
-  connect(shareMode?: ShareMode, preferredProtocols?: Protocol): Promise<CARD>;
+  connect(shareMode?: ShareMode, preferredProtocols?: Protocol): Promise<Card>;
 
   readonly status: ReaderStatus;
   readonly state: StateFlag;
 
-  onStatusChange?: ReaderStatusChangeHandler<CARD, this>;
+  onStatusChange?: ReaderStatusChangeHandler;
 
   waitForChange(timeout?: DWORD): Promise<ReaderStatus>;
 
-  isPresent: boolean;
-  isConnected: boolean;
-  isMute: boolean;
+  readonly isPresent: boolean;
+  readonly isConnected: boolean;
+  readonly isMute: boolean;
 }
 
 export interface Card {

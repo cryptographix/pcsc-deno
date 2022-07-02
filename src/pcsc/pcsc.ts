@@ -54,7 +54,7 @@ export enum Scope {
   System = 0x0002, /**< SCARD_SCOPE_SYSTEM - Scope in system */
 }
 
-const isWin = (typeof Deno != "undefined") ? Deno.build.os == "windows" : false;
+export const isWin = (typeof Deno != "undefined") ? Deno.build.os == "windows" : false;
 
 export enum CardStatus {
   Unknown = (isWin) ? 0 : 0x0001, /**< SCARD_UNKNOWN - Unknown state */

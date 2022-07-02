@@ -1,5 +1,5 @@
-import { Card, Context, Reader, ReaderStatusChangeHandler } from '../pcsc/context.ts';
-import { SCARD_ERROR_TIMEOUT, SCARDCONTEXT, Scope, StateFlag } from '../pcsc/pcsc.ts';
+import { Context, Reader, ReaderStatusChangeHandler } from '../pcsc/context.ts';
+import { SCARDCONTEXT, Scope, StateFlag } from '../pcsc/pcsc.ts';
 
 import * as native from './pcsc-ffi.ts';
 import { CSTR } from './ffi-utils.ts';
@@ -29,22 +29,12 @@ export class FFIContext implements Context {
       (reader) => reader.readerState,
     );
 
-    const res = await native.SCardGetStatusChange(this.#context, timeout, states);
+    const _changed = await native.SCardGetStatusChange(this.#context, timeout, states);
 
-    if (res == 0) {
-      return readers.filter((r) =>
-        r.readerState.eventState & StateFlag.Changed
-      );
-    } else {
-      if (res == SCARD_ERROR_TIMEOUT) {
-        // timeout/error with no change
-        return [];
-      } else {
-        //TODO: Error
-        return [];
-      }
-    }
-
+    // return Readers[] that signalled state-change
+    return readers.filter((r) =>
+      r.readerState.eventState & StateFlag.Changed
+    );
   }
 
   #updating = false;
@@ -135,8 +125,8 @@ export class FFIContext implements Context {
     this.#pnpReader = new FFIReader(this, CSTR.from("\\\\?PnP?\\Notification"));
   }
 
-  async getReaders(rescan = false): Promise<Reader[]> {
-    if (rescan) {
+  async listReaders(rescan = false): Promise<Reader[]> {
+    if (rescan || this.#readers.size == 0) {
       await this.#listReaders();
     }
 
@@ -148,7 +138,7 @@ export class FFIContext implements Context {
     timeout = 0,
     rescan = false,
   ): Promise<Reader[]> {
-    readers = readers ?? await this.getReaders();
+    readers = readers ?? await this.listReaders();
 
     const readersReq = (rescan) ? [this.#pnpReader, ...readers] : readers;
 
@@ -189,14 +179,14 @@ export class FFIContext implements Context {
     this.#context = undefined;
   }
 
-  #onStatusChange?: ReaderStatusChangeHandler<Card, Reader>;
+  #onStatusChange?: ReaderStatusChangeHandler;
 
   get onStatusChange() {
     return this.#onStatusChange;
   }
 
   set onStatusChange(
-    handler: ReaderStatusChangeHandler<Card, Reader> | undefined,
+    handler: ReaderStatusChangeHandler | undefined,
   ) {
     this.#onStatusChange = handler;
 

@@ -1,6 +1,7 @@
 export * from './src/iso7816/apdu.ts';
 export * from './src/iso7816/ber-tlv.ts';
-export * from './src/iso7816/std.ts';
+import * as ISO7816 from './src/iso7816/std.ts';
+export { ISO7816 };
 export * from './src/buffer-utils.ts';
 
 export * as PCSC from './src/pcsc/pcsc.ts';

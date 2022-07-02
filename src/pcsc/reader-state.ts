@@ -39,7 +39,7 @@ export abstract class SCARDREADERSTATE<TNAME=any, TUSERDATA=any> {
     this.initBuffer();
   }
 
-  handleChange(buffer: Uint8Array) {
+  handleChange(buffer: Uint8Array): boolean {
     // update internal buffer
     // DO NOT update name/userData pointers
     // TODO: check ATR length
@@ -55,7 +55,11 @@ export abstract class SCARDREADERSTATE<TNAME=any, TUSERDATA=any> {
 
       // ready for next
       this.currentState = this.eventState & ~StateFlag.Changed;
+
+      return true;
     }
+
+    return false;
   }
 
   get name() {

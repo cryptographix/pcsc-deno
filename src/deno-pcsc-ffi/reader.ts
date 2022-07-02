@@ -13,6 +13,7 @@ import { SmartCardException } from '../iso7816/apdu.ts';
 
 import { FFIContext } from './context.ts';
 import { FFICard } from './card.ts';
+import { SCARDREADERSTATE_FFI } from "./pcsc-ffi.ts";
 
 /**
  * Reader for Deno FFI PC/SC wrapper
@@ -39,7 +40,7 @@ export class FFIReader implements Reader {
     this.#status = "shutdown";
   }
 
-  onStatusChange?: ReaderStatusChangeHandler<Card, Reader<Card>>;
+  onStatusChange?: ReaderStatusChangeHandler;
 
   get name() {
     return this.#state.name.toString();
@@ -87,7 +88,7 @@ export class FFIReader implements Reader {
     return Promise.resolve(new FFICard(this, handle, protocol));
   }
 
-  get readerState(): SCARDREADERSTATE<CSTR, null> {
+  get readerState(): SCARDREADERSTATE_FFI {
     return this.#state;
   }
 

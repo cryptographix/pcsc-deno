@@ -9,7 +9,9 @@ import {
   SCARDCONTEXT,
   SCARDHANDLE,
   SCARDREADERSTATE,
+  SCARD_ERROR_TIMEOUT,
   ShareMode,
+  isWin,
 } from '../pcsc/pcsc.ts';
 import {
   ATR_OFFSET,
@@ -17,14 +19,11 @@ import {
   SCARDREADERSTATE_SIZE,
 } from '../pcsc/reader-state.ts';
 
-import { HEX } from '../buffer-utils.ts';
-
 const libPath = {
   "windows": "winscard.dll",
   "linux": "libpcsclite.so",
   "darwin": "/System/Library/Frameworks/PCSC.framework/PCSC",
 };
-const isWin = (Deno.build.os == "windows");
 
 const HANDLE_SIZE = isWin ? 8 : 4;
 
@@ -461,11 +460,11 @@ export function SCardCardStatus(
   };
 }
 
-export function SCardGetStatusChange(
+export async function SCardGetStatusChange(
   hContext: SCARDCONTEXT,
   timeout: DWORD,
-  states: SCARDREADERSTATE[],
-): Promise<number> {
+  states: SCARDREADERSTATE_FFI[],
+): Promise<SCARDREADERSTATE_FFI[]> {
   const stateBuffer = new Uint8Array(
     SCARDREADERSTATE_SIZE * states.length,
   );
@@ -482,47 +481,39 @@ export function SCardGetStatusChange(
   // and 64 bits), so we pack an array manually instead.
   // const size = int(unsafe.Sizeof(states[0])) - 3
 
-  console.log("I", HEX.toString(stateBuffer));
+  //console.log("I", HEX.toString(stateBuffer));
 
-  //  const func = pcsc.symbols.SCardGetStatusChangeA(
-  const func = pcsc.symbols.SCardGetStatusChange(
+  const res = (await pcsc.symbols.SCardGetStatusChange(
     hContext,
     timeout,
     stateBuffer,
     states.length,
-  ) as Promise<number>;
+  )) as number;
+  
+  // Handle special error-case of timeout -> no change
+  if ( res == SCARD_ERROR_TIMEOUT) {
+    return [];
+  }
 
-  return func.then((res: number) => {
-    if (res !== 0) {
-      console.log(`GSC=0x${res.toString(16)}`);
-      return res;
+  ensureSCardSuccess(res, "SCardGetStatusChange");
+
+  //console.log("O", HEX.toString(stateBuffer));
+
+  const changed: SCARDREADERSTATE_FFI[] = [];
+
+  states.forEach((state, index) => {
+    // update state ...
+    if ( state.handleChange(
+      stateBuffer.slice(
+        index * SCARDREADERSTATE_SIZE,
+        SCARDREADERSTATE_SIZE,
+      ),
+    ) ) {
+      changed.push(state);
     }
-
-    console.log("O", HEX.toString(stateBuffer));
-
-    //   switch (res) {
-    //   case SCARD_ERROR_TIMEOUT:
-    //   case SCARD_ERROR_CANCELLED:
-    //   case SCARD_E_NO_SERVICE: {
-    //     return false; // no change
-    //   }
-
-    //   default:
-    //     ensureSCardSuccess(res, "SCardGetStatusChange");
-    // }
-
-    states.forEach((state, index) => {
-      // update state ...
-      state.handleChange(
-        stateBuffer.slice(
-          index * SCARDREADERSTATE_SIZE,
-          SCARDREADERSTATE_SIZE,
-        ),
-      );
-    });
-
-    return 0; // OK
   });
+
+  return changed;
 }
 
 export function SCardControl(

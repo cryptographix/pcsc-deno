@@ -1,3 +1,4 @@
+export const SCARD_SUCCESS = 0;
 export const SCARD_ERROR_TIMEOUT = 0x8010000a;
 export const SCARD_ERROR_CANCELLED = 0x80100002;
 export const SCARD_E_NO_SERVICE = 0x8010001d;

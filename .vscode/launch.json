@@ -8,11 +8,11 @@
       "request": "launch",
       "name": "deno",
       "type": "pwa-node",
-      "program": "${workspaceFolder}/test/test-context.ts",
+      "program": "${workspaceFolder}/tests/test-select-mf.ts",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "/Users/sean/.deno/bin/deno",
       "runtimeArgs": [
-        "run",
+        "test",
         "--unstable",
         "--inspect-brk=127.0.0.1:9000",
         "--allow-all"

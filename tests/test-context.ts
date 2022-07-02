@@ -7,7 +7,7 @@ context.onStatusChange = async (reader, status) => {
   console.log(`Event ${status} for reader ${reader.name}`);
 
   console.log(
-    `Readers: [${(await context.getReaders()).map((reader) => reader.name).join(",")
+    `Readers: [${(await context.listReaders()).map((reader) => reader.name).join(",")
     }]`,
   );
 
@@ -16,14 +16,14 @@ context.onStatusChange = async (reader, status) => {
   // }
 };
 
-if ((await context.getReaders(true)).length == 0) {
+if ((await context.listReaders(true)).length == 0) {
   console.log("Attach Reader");
   await context.waitForChange([], 10000, true);
 }
 
-console.log(`Readers:[ ${(await context.getReaders(true)).map((r) => r.name).join(", ")} ]`);
+console.log(`Readers:[ ${(await context.listReaders(true)).map((r) => r.name).join(", ")} ]`);
 
-for (const reader of await context.getReaders()) {
+for (const reader of await context.listReaders()) {
   await testReader(reader);
 }
 
