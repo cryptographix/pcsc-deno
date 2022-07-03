@@ -1,5 +1,5 @@
-import { Logger } from './utils/logger.ts';
 import { ContextProvider, PCSC, CommandAPDU, Reader, HEX } from '../mod.ts';
+import { Logger } from './utils/logger.ts';
 
 const context = ContextProvider.establishContext();
 

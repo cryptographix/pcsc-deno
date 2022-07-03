@@ -1,6 +1,4 @@
-import { SCARDREADERSTATE, isWin } from './reader-state.ts';
-export { SCARDREADERSTATE };
-export * from './errors.ts';
+import { isWin } from './reader-state.ts';
 
 export const INFINITE = 0xFFFFFFFF;
 

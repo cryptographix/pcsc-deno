@@ -12,7 +12,8 @@ import {
   ShareMode,
 } from '../pcsc/pcsc.ts';
 
-import { isWin, ATR_OFFSET, SCARD_ATR_SIZE, DWORD_SIZE, POINTER_SIZE } from '../pcsc/reader-state.ts';
+import { isWin, DWORD_SIZE, POINTER_SIZE } from '../pcsc/reader-state.ts';
+import { FFI_SCARDREADERSTATE } from './reader.ts';
 
 const libPath = {
   "windows": "winscard.dll",
@@ -413,8 +414,8 @@ export function SCardCardStatus(
 export async function SCardGetStatusChange(
   hContext: SCARDCONTEXT,
   timeout: DWORD,
-  states: SCARDREADERSTATE_FFI[],
-): Promise<SCARDREADERSTATE_FFI[]> {
+  states: FFI_SCARDREADERSTATE[],
+): Promise<FFI_SCARDREADERSTATE[]> {
   const stateBuffer = SCARDREADERSTATE.buildStateBuffer(states);
 
   //console.log("I", HEX.toString(stateBuffer));
@@ -435,14 +436,14 @@ export async function SCardGetStatusChange(
 
   //console.log("O", HEX.toString(stateBuffer));
 
-  return SCARDREADERSTATE.unpackStateChangeBuffer<SCARDREADERSTATE_FFI>(states, stateBuffer);
+  return SCARDREADERSTATE.unpackStateChangeBuffer<FFI_SCARDREADERSTATE>(states, stateBuffer);
 }
 
 export function SCardGetStatusChangeSync(
   hContext: SCARDCONTEXT,
   timeout: DWORD,
-  states: SCARDREADERSTATE_FFI[],
-): SCARDREADERSTATE_FFI[] {
+  states: FFI_SCARDREADERSTATE[],
+): FFI_SCARDREADERSTATE[] {
   const stateBuffer = SCARDREADERSTATE.buildStateBuffer(states);
 
   const res = libPCSC.symbols.SCardGetStatusChangeSync(
@@ -461,7 +462,7 @@ export function SCardGetStatusChangeSync(
 
   //console.log("O", HEX.toString(stateBuffer));
 
-  return SCARDREADERSTATE.unpackStateChangeBuffer<SCARDREADERSTATE_FFI>(states, stateBuffer);
+  return SCARDREADERSTATE.unpackStateChangeBuffer<FFI_SCARDREADERSTATE>(states, stateBuffer);
 }
 
 export function SCardControl(
@@ -519,21 +520,3 @@ export function SCardSetAttrib(
     "SetAttrib",
   );
 }
-
-export class SCARDREADERSTATE_FFI extends SCARDREADERSTATE<CSTR, null> {
-  protected initBuffer() {
-    this.buffer.fill(0);
-
-    const data = new DataView(this.buffer.buffer);
-
-    data.setBigUint64(
-      0,
-      Deno.UnsafePointer.of(this.name.buffer).valueOf(),
-      true,
-    );
-
-    data.setUint32(ATR_OFFSET, SCARD_ATR_SIZE, isWin);
-  }
-
-}
-

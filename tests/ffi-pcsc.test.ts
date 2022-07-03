@@ -1,8 +1,9 @@
+import { StateFlag, ShareMode, Protocol, Disposition, SCARDCONTEXT, SCARDHANDLE } from '../pcsc/pcsc.ts';
+import { CSTR, libFFI, FFI_SCARDREADERSTATE } from '../deno-pcsc-ffi/deno-pcsc-ffi.ts';
+import { HEX } from '../mod.ts';
+
 import { getContext, findCards, isCardPresent } from './utils/scard-ffi-test-utils.ts';
 import { Logger } from './utils/logger.ts';
-
-import { CSTR, libFFI, SCARDREADERSTATE_FFI } from '../deno-pcsc-ffi/deno-pcsc-ffi.ts';
-import { PCSC, HEX } from '../mod.ts';
 
 import { assert, assertEquals, assertExists } from 'https://deno.land/std@0.146.0/testing/asserts.ts';
 
@@ -21,12 +22,12 @@ Deno.test("Correctly handles initial GetStatusChange", async ({step}) => {
 
   for (const reader of readers) {
     await step(`Test reader: ${reader}`, () => {
-      const state = new SCARDREADERSTATE_FFI(reader);
+      const state = new FFI_SCARDREADERSTATE(reader);
       const changed = libFFI.SCardGetStatusChangeSync(context, 0, [state]);
 
       assertExists(changed, "returns SCARDREADERSTATE[]");
       assert(changed.length == 1, "Initially state=UNKNOWN");
-      assert(changed[0].eventState & PCSC.StateFlag.Changed, "Signalled CHANGED");
+      assert(changed[0].eventState & StateFlag.Changed, "Signalled CHANGED");
     });
   }
 
@@ -59,8 +60,8 @@ Deno.test({
           const { handle: card } = libFFI.SCardConnect(
             context,
             reader,
-            PCSC.ShareMode.Shared,
-            PCSC.Protocol.Any,
+            ShareMode.Shared,
+            Protocol.Any,
           );
 
           await step("Can select MF", () => {
@@ -74,13 +75,13 @@ Deno.test({
   }
 });
 
-function testReaderConnectDisconnect(context: PCSC.SCARDCONTEXT, reader: CSTR) {
+function testReaderConnectDisconnect(context: SCARDCONTEXT, reader: CSTR) {
   // Connect
   const { handle: card, protocol } = libFFI.SCardConnect(
     context,
     reader,
-    PCSC.ShareMode.Shared,
-    PCSC.Protocol.Any,
+    ShareMode.Shared,
+    Protocol.Any,
   );
 
   assert(card, "connected");
@@ -91,9 +92,9 @@ function testReaderConnectDisconnect(context: PCSC.SCARDCONTEXT, reader: CSTR) {
   // Reconnect with same protocol
   const { protocol: reconProtocol } = libFFI.SCardReconnect(
     card,
-    PCSC.ShareMode.Shared,
+    ShareMode.Shared,
     protocol,
-    PCSC.Disposition.LeaveCard
+    Disposition.LeaveCard
   );
 
   assertEquals(protocol, reconProtocol, "Same protocol after RECONNECT+LEAVE")
@@ -101,14 +102,14 @@ function testReaderConnectDisconnect(context: PCSC.SCARDCONTEXT, reader: CSTR) {
   // Disconnect
   libFFI.SCardDisconnect(
     card,
-    PCSC.Disposition.UnpowerCard
+    Disposition.UnpowerCard
   );
 }
 
-function testReaderStatusChange(context: PCSC.SCARDCONTEXT, reader: CSTR) {
-  const state = new SCARDREADERSTATE_FFI(reader);
+function testReaderStatusChange(context: SCARDCONTEXT, reader: CSTR) {
+  const state = new FFI_SCARDREADERSTATE(reader);
 
-  const flagMask = PCSC.StateFlag.Present | PCSC.StateFlag.Inuse | PCSC.StateFlag.Mute | PCSC.StateFlag.Exclusive;
+  const flagMask = StateFlag.Present | StateFlag.Inuse | StateFlag.Mute | StateFlag.Exclusive;
 
   libFFI.SCardGetStatusChangeSync(context, 0, [state]);
   Logger.detail("Initial state", state.eventState.toString(16));
@@ -117,8 +118,8 @@ function testReaderStatusChange(context: PCSC.SCARDCONTEXT, reader: CSTR) {
   const { handle: card1 } = libFFI.SCardConnect(
     context,
     reader,
-    PCSC.ShareMode.Shared,
-    PCSC.Protocol.Any,
+    ShareMode.Shared,
+    Protocol.Any,
   );
 
   // PRESENT + INUSE
@@ -126,8 +127,8 @@ function testReaderStatusChange(context: PCSC.SCARDCONTEXT, reader: CSTR) {
   Logger.detail("State after initial CONNECT", state.currentState.toString(16));
   assertEquals(changed.length, 1, "GetStatusChange() returns changed READERSTATE");
   assertEquals(changed[0], state, "GetStatusChange() returns state object");
-  assertEquals(state.eventState & PCSC.StateFlag.Changed, PCSC.StateFlag.Changed, "GetStatusChange(): eventState includes CHANGED");
-  assertEquals(state.currentState & PCSC.StateFlag.Changed, 0, "GetStatusChange: currentState without CHANGED flag");
+  assertEquals(state.eventState & StateFlag.Changed, StateFlag.Changed, "GetStatusChange(): eventState includes CHANGED");
+  assertEquals(state.currentState & StateFlag.Changed, 0, "GetStatusChange: currentState without CHANGED flag");
 
   // try again -> should be no changes
   changed = libFFI.SCardGetStatusChangeSync(context, 0, [state]);
@@ -137,54 +138,54 @@ function testReaderStatusChange(context: PCSC.SCARDCONTEXT, reader: CSTR) {
   // disconnect
   libFFI.SCardDisconnect(
     card1,
-    PCSC.Disposition.UnpowerCard
+    Disposition.UnpowerCard
   );
   changed = libFFI.SCardGetStatusChangeSync(context, 0, [state]);
   Logger.detail("State after DISCONNECT:UNPOWER", state.currentState.toString(16));
   assertEquals(changed.length, 1, "DISCONNECT -> GetStatusChange() returns changed READERSTATE");
-  assertEquals(state.eventState & PCSC.StateFlag.Changed, PCSC.StateFlag.Changed, "GetStatusChange(): eventState includes CHANGED");
+  assertEquals(state.eventState & StateFlag.Changed, StateFlag.Changed, "GetStatusChange(): eventState includes CHANGED");
 
   libFFI.SCardGetStatusChangeSync(context, 0, [state]);
   Logger.detail("State after no-change", state.currentState.toString(16));
-  assertEquals(state.currentState & flagMask, PCSC.StateFlag.Present, "POWEROFF ->  present and not in-use")
+  assertEquals(state.currentState & flagMask, StateFlag.Present, "POWEROFF ->  present and not in-use")
 
   // Connect (SHARED)
   const { handle: card, protocol } = libFFI.SCardConnect(
     context,
     reader,
-    PCSC.ShareMode.Shared,
-    PCSC.Protocol.Any,
+    ShareMode.Shared,
+    Protocol.Any,
   );
 
   libFFI.SCardGetStatusChangeSync(context, 0, [state]);
   Logger.detail("State after CONNECT+SHARED", state.currentState.toString(16));
-  assertEquals(state.currentState & flagMask, PCSC.StateFlag.Present | PCSC.StateFlag.Inuse, "Connect(SHARED) -> present & in-use")
+  assertEquals(state.currentState & flagMask, StateFlag.Present | StateFlag.Inuse, "Connect(SHARED) -> present & in-use")
 
   // Reconnect (EXCLUSIVE)
   libFFI.SCardReconnect(
     card,
-    PCSC.ShareMode.Exclusive,
+    ShareMode.Exclusive,
     protocol,
-    PCSC.Disposition.LeaveCard
+    Disposition.LeaveCard
   );
 
   // Windows includes "InUse" with Exclusive, OS/X does not!
   libFFI.SCardGetStatusChangeSync(context, 0, [state]);
   Logger.detail("State after RECONNECT+EXCLUSIVE", state.currentState.toString(16));
-  assertEquals(state.currentState & flagMask & ~PCSC.StateFlag.Inuse, PCSC.StateFlag.Present | PCSC.StateFlag.Exclusive, "Reconnect(EXCLUSIVE) -> present & exclusive")
+  assertEquals(state.currentState & flagMask & ~StateFlag.Inuse, StateFlag.Present | StateFlag.Exclusive, "Reconnect(EXCLUSIVE) -> present & exclusive")
 
   // Disconnect
   libFFI.SCardDisconnect(
     card,
-    PCSC.Disposition.LeaveCard
+    Disposition.LeaveCard
   );
 
   libFFI.SCardGetStatusChangeSync(context, 0, [state]);
   Logger.detail("State after DISCONNECT+LEAVE", state.currentState.toString(16));
-  assertEquals(state.currentState & flagMask, PCSC.StateFlag.Present, "Disconnect(LEAVE) -> present");
+  assertEquals(state.currentState & flagMask, StateFlag.Present, "Disconnect(LEAVE) -> present");
 }
 
-function testCardSelectMF(card: PCSC.SCARDHANDLE) {
+function testCardSelectMF(card: SCARDHANDLE) {
   const selectMF = [0x00, 0xA4, 0x00, 0x00, 0x02, 0x3F, 0x00];
   Logger.detail(`Transmit: Select MF (${HEX.toString(selectMF)})`);
 

@@ -1,27 +1,42 @@
-import { Reader, Protocol,  DWORD, SCARDHANDLE, ShareMode, StateFlag } from '../pcsc/pcsc.ts';
+import { Reader, Protocol,  DWORD, ShareMode, StateFlag, SCARDREADERSTATE } from '../pcsc/pcsc.ts';
 import { ReaderStatus, ReaderStatusChangeHandler } from '../pcsc/context.ts';
+import { isWin, ATR_OFFSET, SCARD_ATR_SIZE } from '../pcsc/reader-state.ts';
 
-import { CommandAPDU, ResponseAPDU, SmartCardException } from '../iso7816/iso7816.ts';
-
-import * as native from './pcsc-ffi-wrapper.ts';
-import { SCARDREADERSTATE_FFI } from "./pcsc-ffi-wrapper.ts";
 import { CSTR } from './ffi-utils.ts';
 
 import { FFIContext } from './context.ts';
 import { FFICard } from './card.ts';
 
+
+export class FFI_SCARDREADERSTATE extends SCARDREADERSTATE<CSTR, null> {
+  protected initBuffer() {
+    this.buffer.fill(0);
+
+    const data = new DataView(this.buffer.buffer);
+
+    data.setBigUint64(
+      0,
+      Deno.UnsafePointer.of(this.name.buffer).valueOf(),
+      true,
+    );
+
+    data.setUint32(ATR_OFFSET, SCARD_ATR_SIZE, isWin);
+  }
+
+}
+
 /**
  * Reader for Deno FFI PC/SC wrapper
  */
 export class FFIReader implements Reader {
-  #state: native.SCARDREADERSTATE_FFI;
+  #state: FFI_SCARDREADERSTATE;
   #status: ReaderStatus;
 
   constructor(
     public readonly context: FFIContext,
     readerName: CSTR,
   ) {
-    this.#state = new native.SCARDREADERSTATE_FFI(
+    this.#state = new FFI_SCARDREADERSTATE(
       readerName,
       null,
       () => {
@@ -81,7 +96,7 @@ export class FFIReader implements Reader {
     return Promise.resolve(new FFICard(this, handle, protocol));
   }
 
-  get readerState(): SCARDREADERSTATE_FFI {
+  get readerState(): FFI_SCARDREADERSTATE {
     return this.#state;
   }
 
