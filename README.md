@@ -1,12 +1,10 @@
 Deno FFI bindings to the PC/SC API. 
 
-This module offers both [Low Level](#low-level-and-legacy-usage) and [Application Level](#application-level-usage-example) abstractions of the PC/SC API for accessing ISO-7816/ISO-14433 smartcards as used in Banking (EMV / Chip-and-PIN) cards, ID cards and Passports.
+`pcsc` provides both [Application Level](#application-level-usage-example) and [Low Level](#low-level-and-legacy-usage) abstraction of the PC/SC API for accessing ISO-7816/ISO-14433 smartcards as used in Banking (EMV / Chip-and-PIN) cards, ID cards and Passports.
 
-The [Low Level](#low-level-and-legacy-usage) API exports `SCard*` methods that are lightweight wrappers over the standard [PC/SC] API calls.
+The [Application Level](#application-level-usage-example) abstraction offers a dev-friendly API based on concepts and objects such as `Context`, `Reader`, `Card`, `CommandAPDU` and `ResponseAPDU`. The [Low Level](#low-level-and-legacy-usage) API exists as a lightweight wrapper over the standard [PC/SC] API calls, useful when porting existing code.
 
-2. [Application Level](#application-level-usage-example) abstractions offer a user-friendly API based on the objects such as `Context`, `Reader`, `Card`, `CommandAPDU` and `ResponseAPDU`.
-
-3. WIP: OpenMobileAPI [OMAPI]
+A third layer, OpenMobileAPI [OMAPI], is still work-in-progress.
 
 ## Status
 Requires Deno 1.23.2 or greater, along with `--unstable` and `--allow-ffi` flags.
@@ -62,7 +60,7 @@ Contains a number of utility classes for parsing/building APDUs (the base comman
 
 
 # Low-level and legacy usage
-Using FFI for low-level access to PC/SC, via 
+`pcsc` also provides low-level access to PC/SC via the following methods:
 
 | Function                | Description |
 | ----------------------- | ----------- |
@@ -71,12 +69,20 @@ Using FFI for low-level access to PC/SC, via
 | `SCardCancel`           | Cancel ongoing card transaction |
 | `SCardIsValidContext`   | Check if context still valid |
 | `SCardListReaders`      | List connected Smart card readers |
-| `SCardGetReaderStatus`  | ASYNC - Wait for status change on reader(s) |
+| `SCardGetStatusChange`  | Wait for status change on reader(s) |
 | `SCardConnect`          | Connect to card |
 | `SCardStatus`           | Verify card status |
 | `SCardReconnect`        | Reconnect to card |
 | `SCardDisconnect`       | Disconnect from card |
 | `SCardTransmit`         | Send command and wait for response from card |
+
+Note: `SCardGetStatusChange` and `SCardTransmit` are `async` functions, but there are also synchronous versions 
+that may be useful in certain circumstances.
+
+| Function                | Description |
+| ----------------------- | ----------- |
+| `SCardGetStatusChangeSync`  | Immediately return status of reader(s) |
+| `SCardTransmitSync`         | Send command and block while waiting for response from card |
 
 # links
 

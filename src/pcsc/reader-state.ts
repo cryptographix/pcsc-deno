@@ -1,9 +1,11 @@
 import { StateFlag, StateFlags } from './pcsc.ts';
 
+export const isWin = (typeof Deno != "undefined") ? Deno.build.os == "windows" : false;
+
 export const DWORD_SIZE = 4;
 export const POINTER_SIZE = 8; // 64 bits only
 
-export const SCARD_ATR_SIZE = 36; //(Deno.build.os == "darwin" ? 36 : 33);
+export const SCARD_ATR_SIZE = (isWin ? 33 : 36);
 
 /**
  * SCARDREADER_STATE, 64bits
@@ -22,7 +24,7 @@ export const ATR_OFFSET = ACTUAL_STATE_OFFSET + DWORD_SIZE;
 export const SCARDREADERSTATE_SIZE = ATR_OFFSET + DWORD_SIZE + SCARD_ATR_SIZE;
 
 // deno-lint-ignore no-explicit-any
-export abstract class SCARDREADERSTATE<TNAME=any, TUSERDATA=any> {
+export abstract class SCARDREADERSTATE<TNAME = any, TUSERDATA = any> {
   #readerName: TNAME;
   #buffer: Uint8Array;
   #userData?: TUSERDATA;
@@ -109,4 +111,44 @@ export abstract class SCARDREADERSTATE<TNAME=any, TUSERDATA=any> {
   }
 
   protected abstract initBuffer(): void;
+
+  static buildStateBuffer(states: SCARDREADERSTATE[], alignedStateSize = SCARDREADERSTATE_SIZE) {
+    const stateBuffer = new Uint8Array(
+      alignedStateSize * states.length,
+    );
+
+    states.forEach((state, index) =>
+      stateBuffer.set(
+        state.buffer,
+        index * alignedStateSize,
+      )
+    );
+
+    return stateBuffer;
+  }
+
+  static unpackStateChangeBuffer<STATE extends SCARDREADERSTATE>(
+    states: STATE[],
+    stateBuffer: Uint8Array,
+    alignedStateSize = SCARDREADERSTATE_SIZE): STATE[] {
+
+    const changed: STATE[] = [];
+
+    states.forEach((state, index) => {
+      // update state ...
+      if (state.handleChange(
+        stateBuffer.slice(
+          index * alignedStateSize,
+          SCARDREADERSTATE_SIZE,
+        ),
+      )) {
+        changed.push(state);
+      }
+    });
+
+    return changed;
+  }
+
+
+
 }

@@ -45,12 +45,12 @@ import { FFIReader } from './reader.ts';
     return this.#handle;
   }
 
-  transmit(command: Uint8Array, expectedLen?: number): Promise<Uint8Array> {
+  async transmit(command: Uint8Array, expectedLen?: number): Promise<Uint8Array> {
     if (!this.#handle) {
       throw new SmartCardException("SmartCard disconected");
     }
 
-    const response = native.SCardTransmit(
+    const response = await native.SCardTransmit(
       this.handle,
       command,
       2 + (expectedLen ?? 256),
@@ -59,16 +59,16 @@ import { FFIReader } from './reader.ts';
     return Promise.resolve(response);
   }
 
-  transmitAPDU(commandAPDU: CommandAPDU): Promise<ResponseAPDU> {
+  async transmitAPDU(commandAPDU: CommandAPDU): Promise<ResponseAPDU> {
     const commandBytes = commandAPDU.toBytes({ protocol: this.#protocol });
 
-    const response = native.SCardTransmit(
+    const response = await native.SCardTransmit(
       this.handle,
       commandBytes,
       2 + (commandAPDU.le ?? 0),
     );
 
-    return Promise.resolve(new ResponseAPDU(response));
+    return new ResponseAPDU(response);
   }
 
   reconnect(

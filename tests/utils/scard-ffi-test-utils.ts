@@ -27,14 +27,14 @@ export function getContext(needReader = true) {
   }
 }
 
-export async function findCards() {
+export function findCards() {
   const { context, readers } = getContext();
 
   const readersWithCard: CSTR[] = [];
 
   for (const readerName of readers) {
     const state = new libFFI.SCARDREADERSTATE_FFI(readerName);
-    const changed = await libFFI.SCardGetStatusChange(context, 0, [state]);
+    const changed = libFFI.SCardGetStatusChangeSync(context, 0, [state]);
 
     if (changed.length != 0) {
       const stateFlags = changed[0].currentState & (PCSC.StateFlag.Present | PCSC.StateFlag.Mute);
@@ -53,11 +53,11 @@ export async function findCards() {
   }
 }
 
-export async function isCardPresent(reader: CSTR) {
-  const { context, readersWithCard } = await findCards();
+export function isCardPresent(reader: CSTR) {
+  const { context, readersWithCard } = findCards();
 
   libFFI.SCardReleaseContext(context);
 
-  return readersWithCard.map( r => r.toString() ).includes(reader.toString());
+  return readersWithCard.map(r => r.toString()).includes(reader.toString());
 }
 

@@ -1,10 +1,10 @@
-export { SCARDREADERSTATE } from './reader-state.ts';
+import { SCARDREADERSTATE, isWin } from './reader-state.ts';
+export { SCARDREADERSTATE };
 export * from './errors.ts';
 
 export const INFINITE = 0xFFFFFFFF;
 
 export type DWORD = number;
-export const DWORD_SIZE = 4;
 
 export type SCARDCONTEXT = DWORD | bigint;
 export type SCARDHANDLE = DWORD | bigint;
@@ -53,8 +53,6 @@ export enum Scope {
   Terminal = 0x0001, /**< SCARD_SCOPE_TERMINAL - Scope in terminal */
   System = 0x0002, /**< SCARD_SCOPE_SYSTEM - Scope in system */
 }
-
-export const isWin = (typeof Deno != "undefined") ? Deno.build.os == "windows" : false;
 
 export enum CardStatus {
   Unknown = (isWin) ? 0 : 0x0001, /**< SCARD_UNKNOWN - Unknown state */
