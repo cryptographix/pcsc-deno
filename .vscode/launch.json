@@ -8,7 +8,7 @@
       "request": "launch",
       "name": "deno",
       "type": "pwa-node",
-      "program": "${workspaceFolder}/tests/test-select-mf.ts",
+      "program": "${workspaceFolder}/tests/test-context.ts",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "/Users/sean/.deno/bin/deno",
       "runtimeArgs": [

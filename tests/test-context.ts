@@ -3,11 +3,11 @@ import { FFIContext, FFIReader, PCSC, CommandAPDU, Reader, HEX } from '../mod.ts
 
 const context = FFIContext.establishContext();
 
-context.onStatusChange = async (reader, status) => {
+context.onStatusChange = (reader, status) => {
   Logger.info(`Event ${status} for reader ${reader.name}`);
 
   Logger.detail(
-    `Readers: [${(await context.listReaders()).map((reader) => reader.name).join(",")
+    `Readers: [${(context.listReaders()).map((reader) => reader.name).join(",")
     }]`,
   );
 
@@ -16,14 +16,14 @@ context.onStatusChange = async (reader, status) => {
   // }
 };
 
-if ((await context.listReaders(true)).length == 0) {
+if (context.listReaders(true).length == 0) {
   Logger.info("Attach Reader");
   await context.waitForChange([], 10000, true);
 }
 
-Logger.info(`Readers:[ ${(await context.listReaders(true)).map((r) => r.name).join(", ")} ]`);
+Logger.info(`Readers:[ ${(context.listReaders(true)).map((r) => r.name).join(", ")} ]`);
 
-for (const reader of await context.listReaders()) {
+for (const reader of context.listReaders()) {
   await testReader(reader);
 }
 

@@ -164,11 +164,10 @@ export function SCardEstablishContext(scope: DWORD): SCARDCONTEXT {
   return isWin ? view.getBigUint64(0, true) : view.getUint32(0, true);
 }
 
-export function SCardIsValidContext(hContext: SCARDCONTEXT) {
-  ensureSCardSuccess(
-    libPCSC.symbols.SCardIsValidContext(hContext),
-    "SCardIsValidContext",
-  );
+export function SCardIsValidContext(hContext: SCARDCONTEXT): boolean {
+  const ret = libPCSC.symbols.SCardIsValidContext(hContext);
+
+  return ( ret == 0 );
 }
 
 export function SCardCancel(hContext: SCARDCONTEXT) {

@@ -1,13 +1,14 @@
-import { Reader, ReaderStatus, ReaderStatusChangeHandler } from '../pcsc/context.ts';
-import { DWORD, Protocol, ShareMode, StateFlag } from '../pcsc/pcsc.ts';
+import { Reader, Protocol,  DWORD, SCARDHANDLE, ShareMode, StateFlag } from '../pcsc/pcsc.ts';
+import { ReaderStatus, ReaderStatusChangeHandler } from '../pcsc/context.ts';
 
-import * as native from './pcsc-ffi.ts';
+import { CommandAPDU, ResponseAPDU, SmartCardException } from '../iso7816/iso7816.ts';
+
+import * as native from './pcsc-ffi-wrapper.ts';
+import { SCARDREADERSTATE_FFI } from "./pcsc-ffi-wrapper.ts";
 import { CSTR } from './ffi-utils.ts';
-import { SmartCardException } from '../iso7816/apdu.ts';
 
 import { FFIContext } from './context.ts';
 import { FFICard } from './card.ts';
-import { SCARDREADERSTATE_FFI } from "./pcsc-ffi.ts";
 
 /**
  * Reader for Deno FFI PC/SC wrapper
@@ -64,16 +65,14 @@ export class FFIReader implements Reader {
     return (this.#state.currentState & StateFlag.Mute) != 0;
   }
 
+  /**
+   * Connect to card
+   */
   connect(
     shareMode = ShareMode.Shared,
     supportedProtocols = Protocol.Any,
   ): Promise<FFICard> {
-    if (!FFIContext.isValidContext(this.context.context)) {
-      throw new SmartCardException("SmartCard context is shutdown");
-    }
-
-    const { handle, protocol } = native.SCardConnect(
-      this.context.context,
+    const { handle, protocol } = this.context.connect(
       this.#state.name,
       shareMode,
       supportedProtocols,

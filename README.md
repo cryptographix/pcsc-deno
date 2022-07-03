@@ -7,16 +7,16 @@ The [Application Level](#application-level-usage-example) abstraction offers a d
 A third layer, OpenMobileAPI [OMAPI], is still work-in-progress.
 
 ## Status
-Requires Deno 1.23.2 or greater, along with `--unstable` and `--allow-ffi` flags.
+Requires Deno 1.23.2 or greater, along with `--unstable` and `--gitallow-ffi` flags.
 
 Currently tested on MAC (M1) and Windows 10 64bits. Should work on linux.
 Any problems, please raise issue at (https://github.com/cryptographix/pcsc-deno). PRs welcome.
 
-# Introduction
+# Application-level API
 
-# Application-level usage example
+## Example
 ```typescript
-import { FFIContext, CommandAPDU, PCSC, ISO7816, HEX } from 'https://<pcsc-deno-repo>/mod.ts';
+import { FFIContext, CommandAPDU, PCSC, ISO7816, HEX } from 'https://deno.land/x/pcsc/mod.ts';
 
 const context = FFIContext.establishContext();
 
@@ -58,6 +58,31 @@ context.shutdown();
 Contains a number of utility classes for parsing/building APDUs (the base command/response structures)
 `CommandAPDU` and `ResponseAPDU`, as well as TLVs `BerTLV`.
 
+## API
+
+### Class: `FFIContext`
+The `FFIContext` object lists and notifies the existence of Card Readers.
+
+#### Static method: `establishContext()`
+`establishContext` connects to the PC/SC daemon and returns a valid `FFIContext`. After use, the `shutdown` method should be called, to release any allocated resources.
+
+#### Method: `listReaders()`
+`listReaders` scans PC/SC for a list of connected readers, and returns an array of `Reader` objects.
+
+#### Method: `async waitForChange()`
+`waitForChange` waits for a change - card insertion/removal or reader plug/unplug. If a notify handler 
+has been registered, that will be called once for each change detected. A timeout (ms) may be specified
+after which the method will automatically resolve.
+
+#### Method: `shutdown()`
+`shutdown` shutsdown all `Readers` and closed the connection to the PC/SC deamon
+
+#### Property: `onStatusChange`
+`onStatusChange` can be set to receive notifications for reader/card events.
+
+### Class: `Reader`
+
+### ________ 
 
 # Low-level and legacy usage
 `pcsc` also provides low-level access to PC/SC via the following methods:

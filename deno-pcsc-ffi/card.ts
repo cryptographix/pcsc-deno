@@ -1,26 +1,15 @@
-import {
-  Card as ICard,
-  ReaderStatus,
-} from '../pcsc/context.ts';
+import { Card, Disposition, Protocol,  SCARDHANDLE, ShareMode } from '../pcsc/pcsc.ts';
+import { ReaderStatus } from '../pcsc/context.ts';
 
-import { CommandAPDU, ResponseAPDU } from '../iso7816/apdu.ts';
+import { CommandAPDU, ResponseAPDU, SmartCardException } from '../iso7816/iso7816.ts';
 
-import {
-  Disposition,
-  Protocol,
-  SCARDHANDLE,
-  ShareMode,
-} from '../pcsc/pcsc.ts';
-
-import * as native from './pcsc-ffi.ts';
-import { SmartCardException } from '../iso7816/apdu.ts';
-
+import * as native from './pcsc-ffi-wrapper.ts';
 import { FFIReader } from './reader.ts';
 
 /**
  * Card for Deno FFI PC/SC wrapper
  */
- export class FFICard implements ICard {
+export class FFICard implements Card {
   #protocol: number;
   #handle: SCARDHANDLE;
 

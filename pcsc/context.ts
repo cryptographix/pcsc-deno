@@ -14,7 +14,7 @@ export type ReaderStatus =
 export type ReaderStatusChangeHandler = (reader: Reader, status: ReaderStatus) => void;
 
 export interface Context { //<Card extends Card = Card, Reader extends Reader<Card> = Reader<Card>> {
-  listReaders(rescan: boolean): Promise<Reader[]>;
+  listReaders(rescan: boolean): Reader[];
 
   onStatusChange?: ReaderStatusChangeHandler;
 
@@ -60,43 +60,3 @@ export interface Card {
   disconnect(disposition: Disposition): Promise<ReaderStatus>;
 }
 
-export interface ContextProvider {
-  establishContext: (scope?: Scope) => Context;
-  readonly name: string;
-}
-
-let contextProvider: ContextProvider | undefined;
-
-function getContextProvider() {
-  if (!contextProvider) {
-    if (typeof Deno != "undefined" && typeof Deno.UnsafePointer != "undefined") {
-      // Need Deno and --unsafe
-      contextProvider = {
-        establishContext: FFIContext.establishContext,
-        name: "Deno FFI"
-      }
-    }
-    else {
-      throw new Error("No PCSC ContextProvider registered");      
-    }
-  }
-
-  return contextProvider!;
-}
-
-/**
- * Singleton ContextProvider
- */
-export const ContextProvider = {
-  registerProvider( provider: ContextProvider ) {
-    contextProvider = provider;
-  },
-
-  get provider(): ContextProvider {
-    return getContextProvider();
-  },
-
-  establishContext( scope?: Scope ): Context {
-    return getContextProvider().establishContext(scope);
-  },
-}

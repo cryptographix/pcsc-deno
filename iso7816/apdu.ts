@@ -1,5 +1,5 @@
 //import { SmartCardException } from './errors.ts';
-import { BytesLike, HEX, toUint8Array } from '../buffer-utils.ts';
+import { BytesLike, HEX, toUint8Array } from './buffer-utils.ts';
 
 export class SmartCardException extends Error {
 }
