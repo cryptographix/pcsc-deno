@@ -1,5 +1,5 @@
-import { CSTR, libFFI,  } from '../../deno-pcsc-ffi/deno-pcsc-ffi.ts';
-import {FFIContext, PCSC } from '../../mod.ts';
+import { CSTR, libFFI, FFIContext } from '../../deno-pcsc-ffi/deno-pcsc-ffi.ts';
+import { PCSC } from '../../mod.ts';
 
 import { assert } from 'https://deno.land/std@0.146.0/testing/asserts.ts';
 

@@ -1,9 +1,8 @@
-import { FFIContext, PCSC, CommandAPDU, ISO7816, HEX } from '../mod.ts';
-//import { FFIContext, PCSC, CommandAPDU, ISO7816, HEX } from 'https://<pcsc-deno-repo>/mod.ts';
+import { ContextProvider, PCSC, CommandAPDU, ISO7816, HEX } from '../mod.ts';
 
-const context = FFIContext.establishContext();
+const context = ContextProvider.establishContext();
 
-const readers = await context.listReaders();
+const readers = context.listReaders();
 
 for (const reader of readers) {
   if (reader.isMute) {

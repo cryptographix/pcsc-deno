@@ -1,7 +1,7 @@
 import { getContext, findCards, isCardPresent } from './utils/scard-ffi-test-utils.ts';
 import { Logger } from './utils/logger.ts';
 
-import { CSTR, libFFI, SCARDREADERSTATE_FFI  } from '../deno-pcsc-ffi/deno-pcsc-ffi.ts';
+import { CSTR, libFFI, SCARDREADERSTATE_FFI } from '../deno-pcsc-ffi/deno-pcsc-ffi.ts';
 import { PCSC, HEX } from '../mod.ts';
 
 import { assert, assertEquals, assertExists } from 'https://deno.land/std@0.146.0/testing/asserts.ts';

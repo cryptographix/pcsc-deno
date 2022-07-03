@@ -7,20 +7,22 @@ The [Application Level](#application-level-usage-example) abstraction offers a d
 A third layer, OpenMobileAPI [OMAPI], is still work-in-progress.
 
 ## Status
-Requires Deno 1.23.2 or greater, along with `--unstable` and `--gitallow-ffi` flags.
+Requires Deno 1.23.2 or greater, along with `--unstable` and `--allow-ffi` flags.
 
 Currently tested on MAC (M1) and Windows 10 64bits. Should work on linux.
 Any problems, please raise issue at (https://github.com/cryptographix/pcsc-deno). PRs welcome.
 
 # Application-level API
+Use the `ContextProvider` to establish a `Context` (connection) with PC/SC, list `Readers`, connect to and communicate with `Cards`.
+On Deno, `ContextProvider` defaults to the FFI implementation that requires `--unstable` and `--allow-ffi` flags to be added to `deno run` or `deno test` commands.
 
 ## Example
 ```typescript
-import { FFIContext, CommandAPDU, PCSC, ISO7816, HEX } from 'https://deno.land/x/pcsc/mod.ts';
+import { ContextProvider, CommandAPDU, PCSC, ISO7816, HEX } from 'https://deno.land/x/pcsc/mod.ts';
 
-const context = FFIContext.establishContext();
+const context = ContextProvider.establishContext();
 
-const readers = await context.listReaders();
+const readers = context.listReaders();
 
 for (const reader of readers) {
   if (reader.isMute) {
@@ -55,23 +57,25 @@ for (const reader of readers) {
 context.shutdown();
 ```
 
-Contains a number of utility classes for parsing/building APDUs (the base command/response structures)
-`CommandAPDU` and `ResponseAPDU`, as well as TLVs `BerTLV`.
-
+===
 ## API
 
-### Class: `FFIContext`
-The `FFIContext` object lists and notifies the existence of Card Readers.
+### Class: `ContextProvider`
+The `ContextProvider` object is a singleton registry that provides access to the PCSC context.
 
-#### Static method: `establishContext()`
-`establishContext` connects to the PC/SC daemon and returns a valid `FFIContext`. After use, the `shutdown` method should be called, to release any allocated resources.
+#### method: `establishContext()`
+`establishContext` connects to the PC/SC daemon and returns a valid `Context`. On Deno, an instance of `FFIContext` will be returned.
+
+### Class: `Context`
+The `Context` object lists the available Card Readers and notifies a listener of any changes. After use, 
+the `shutdown` method should be called, to release any allocated resources. 
 
 #### Method: `listReaders()`
 `listReaders` scans PC/SC for a list of connected readers, and returns an array of `Reader` objects.
 
 #### Method: `async waitForChange()`
 `waitForChange` waits for a change - card insertion/removal or reader plug/unplug. If a notify handler 
-has been registered, that will be called once for each change detected. A timeout (ms) may be specified
+has been registered, that will be called once for each change detected. A `timeout` (ms) may be specified
 after which the method will automatically resolve.
 
 #### Method: `shutdown()`
@@ -82,8 +86,7 @@ after which the method will automatically resolve.
 
 ### Class: `Reader`
 
-### ________ 
-
+===
 # Low-level and legacy usage
 `pcsc` also provides low-level access to PC/SC via the following methods:
 

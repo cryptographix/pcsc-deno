@@ -1,5 +1,4 @@
-//import { SmartCardException } from './errors.ts';
-import { BytesLike, HEX, toUint8Array } from './buffer-utils.ts';
+import { BytesLike, HEX } from './buffer-utils.ts';
 
 export class SmartCardException extends Error {
 }
@@ -23,7 +22,7 @@ export class CommandAPDU {
     options?: { description?: string }
   ) {
     if (data !== undefined) {
-      this.data = toUint8Array(data);
+      this.data = BytesLike.toUint8Array(data);
     }
 
     this.isExtended = isExtended ?? false;
@@ -89,7 +88,7 @@ export class CommandAPDU {
     return this;
   }
   public setData(data: BytesLike): this {
-    this.data = toUint8Array(data);
+    this.data =BytesLike.toUint8Array(data);
     return this;
   }
   public setLe(Le: number): this {
@@ -102,7 +101,7 @@ export class CommandAPDU {
   }
 
   /**
-   * Encode
+   * Encode - returns an Uint8Array from the CommandAPDU object
    */
   public toBytes(options?: { protocol?: number}): Uint8Array {
     const isT0 = (options?.protocol ?? 1) == 0;
@@ -140,7 +139,7 @@ export class CommandAPDU {
    * Decode
    */
   static from(bytes: BytesLike, options?: { description?: string } ): CommandAPDU {
-    const buffer = toUint8Array(bytes);
+    const buffer =BytesLike.toUint8Array(bytes);
 
     if (buffer.length < 4) {
       throw new Error("CommandAPDU: Invalid buffer");
@@ -191,7 +190,7 @@ export class ResponseAPDU {
    * Deserialize from a JSON object
    */
   constructor(bytes: BytesLike = [], options?: {description?: string} ) {
-    const buffer = toUint8Array(bytes);
+    const buffer =BytesLike.toUint8Array(bytes);
 
     if (buffer.length < 2) {
       throw new SmartCardException("ResponseAPDU Buffer invalid");
@@ -229,7 +228,7 @@ export class ResponseAPDU {
 
   public set(sw: number, data: BytesLike): this {
     this.SW = sw;
-    this.data = toUint8Array(data);
+    this.data =BytesLike.toUint8Array(data);
 
     return this;
   }
@@ -247,7 +246,7 @@ export class ResponseAPDU {
     return this;
   }
   public setData(data: BytesLike): this {
-    this.data = toUint8Array(data);
+    this.data =BytesLike.toUint8Array(data);
     return this;
   }
   public setDescription(description: string): this {
@@ -256,7 +255,7 @@ export class ResponseAPDU {
   }
 
   /**
-   * Encoder function, returns a blob from an APDUResponse object
+   * Encode, returns an Uint8Array from an APDUResponse object
    */
   public toBytes(_options?: unknown): Uint8Array {
     const bytes = new Uint8Array(this.La + 2);
@@ -269,7 +268,7 @@ export class ResponseAPDU {
   }
 
   public static from(SW: number, data?: BytesLike, options?: {description?: string}): ResponseAPDU {
-    const buffer = toUint8Array(data);
+    const buffer =BytesLike.toUint8Array(data);
 
     return new ResponseAPDU([...buffer, SW >> 8, SW & 0xff], options);
   }

@@ -1,6 +1,4 @@
-import { BytesLike, toUint8Array } from './buffer-utils.ts';
-
-type ByteArray = Uint8Array;
+import { BytesLike } from './buffer-utils.ts';
 
 export interface TLV {
   tag: number;
@@ -8,24 +6,35 @@ export interface TLV {
   value: Uint8Array;
 }
 
-export type TLVParseType = "padding" | "t" | "tl" | "tlv";
-
 export class BerTLV implements TLV {
   #tag: number;
   #value: Uint8Array;
 
   /**
-   * Parse and extract TLV information from a ByteArray
+   * Parse and extract TLV information from bytes
+   * 
+   * @param bytes Raw TLV as bytes or buffer
+   * @param parseType What to parse and extract from bytes
+   *   `padding` skip any initial padding (to see if buffer contains any data)
+   *   `tag`     skip padding and extract a BER-TLV `tag` field
+   *   `tag-len` skip padding and extract both `tag` and `len` fields
+   *   `tlv`     skip padding and extract `tag`, `len` and `value` fields
    * @return
    *   null:   Malformed TLV
+   * 
    *   { }:    Info about the TLV, including
-   *              tag: TAG if found, 0 otherwise (only padding)
+   *             `tag`: Tag of TLV                        (`tag`/`tag-len`/`tlv` options)
+   *             `tagOffset`: Offset to `tag` of TLV      (`tag`/`tag-len`/`tlv` options)
+   *             `len`: Length of TLV                     (`tag-len`/`tlv` options)
+   *             `lenOffset`: Offset to `len` of TLV      (`tag-len`/`tlv` options)
+   *             `value`: Value of TLV                    (`tlv` option)
+   *             `valueOffset`: Offset to `value` of TLV  (`tlv` options)
    */
   static parse(
     bytes: BytesLike,
-    parseType: TLVParseType = "tlv",
+    parseType: "padding" | "tag" | "tag-len" | "tlv" = "tlv",
   ) {
-    const buffer = toUint8Array(bytes);
+    const buffer = BytesLike.toUint8Array(bytes);
     let off = 0;
 
     const res: Partial<TLV> & {
@@ -57,7 +66,7 @@ export class BerTLV implements TLV {
 
     res.lenOffset = off;
 
-    if (parseType == "t") {
+    if (parseType == "tag") {
       return res;
     }
 
@@ -79,7 +88,7 @@ export class BerTLV implements TLV {
     res.len = len;
     res.valueOffset = off;
 
-    if (parseType == "tl") {
+    if (parseType == "tag-len") {
       return res;
     }
 
@@ -95,7 +104,7 @@ export class BerTLV implements TLV {
 
   constructor(tag: number, value: BytesLike) {
     this.#tag = tag;
-    this.#value = toUint8Array(value);
+    this.#value = BytesLike.toUint8Array(value);
   }
 
   get tag(): number {

@@ -1,6 +1,5 @@
-import { Disposition, Protocol, ShareMode, StateFlag, DWORD, Scope } from './pcsc.ts';
+import { Disposition, Protocol, ShareMode, DWORD, StateFlags } from './pcsc.ts';
 import { CommandAPDU, ResponseAPDU } from '../iso7816/apdu.ts';
-import { FFIContext } from "../deno-pcsc-ffi/context.ts";
 
 export type ReaderStatus =
   | "setup"
@@ -14,7 +13,7 @@ export type ReaderStatus =
 export type ReaderStatusChangeHandler = (reader: Reader, status: ReaderStatus) => void;
 
 export interface Context { //<Card extends Card = Card, Reader extends Reader<Card> = Reader<Card>> {
-  listReaders(rescan: boolean): Reader[];
+  listReaders(rescan?: boolean): Reader[];
 
   onStatusChange?: ReaderStatusChangeHandler;
 
@@ -33,7 +32,7 @@ export interface Reader {
   connect(shareMode?: ShareMode, preferredProtocols?: Protocol): Promise<Card>;
 
   readonly status: ReaderStatus;
-  readonly state: StateFlag;
+  readonly state: StateFlags;
 
   onStatusChange?: ReaderStatusChangeHandler;
 

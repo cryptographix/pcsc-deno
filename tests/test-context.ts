@@ -1,7 +1,7 @@
 import { Logger } from './utils/logger.ts';
-import { FFIContext, FFIReader, PCSC, CommandAPDU, Reader, HEX } from '../mod.ts';
+import { ContextProvider, PCSC, CommandAPDU, Reader, HEX } from '../mod.ts';
 
-const context = FFIContext.establishContext();
+const context = ContextProvider.establishContext();
 
 context.onStatusChange = (reader, status) => {
   Logger.info(`Event ${status} for reader ${reader.name}`);
@@ -31,7 +31,7 @@ async function testReader(reader: Reader): Promise<void> {
   reader.onStatusChange = (reader, status) => {
     Logger.info(`${reader.name} changed to ${status}`);
 
-    Logger.detail((reader as FFIReader).readerState.currentState.toString(16));
+    Logger.detail(reader.state.toString(16));
   }
 
   while (reader.isPresent) {
