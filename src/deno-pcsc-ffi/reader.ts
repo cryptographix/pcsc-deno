@@ -1,11 +1,5 @@
-import {
-  Card,
-  Reader, ReaderStatus, ReaderStatusChangeHandler,
-} from '../pcsc/context.ts';
-
-import {
-  DWORD, Protocol, SCARDREADERSTATE, ShareMode, StateFlag
-} from '../pcsc/pcsc.ts';
+import { Reader, ReaderStatus, ReaderStatusChangeHandler } from '../pcsc/context.ts';
+import { DWORD, Protocol, ShareMode, StateFlag } from '../pcsc/pcsc.ts';
 
 import * as native from './pcsc-ffi.ts';
 import { CSTR } from './ffi-utils.ts';
@@ -135,7 +129,7 @@ export class FFIReader implements Reader {
   static isValidReader(reader: Reader): reader is FFIReader {
     return (reader instanceof FFIReader);
   }
-  
+
   static isValidReaders(readers: Reader[]): readers is FFIReader[] {
     return readers.every((reader) => FFIReader.isValidReader(reader));
   }

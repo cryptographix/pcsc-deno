@@ -1,14 +1,22 @@
-Deno FFI bindings to the PC/SC API, currently for OS/X, with (windows/linux) coming soon
+Deno FFI bindings to the PC/SC API. 
+
+This module offers both [Low Level](#low-level-and-legacy-usage) and [Application Level](#application-level-usage-example) abstractions of the PC/SC API for accessing ISO-7816/ISO-14433 smartcards as used in Banking (EMV / Chip-and-PIN) cards, ID cards and Passports.
+
+The [Low Level](#low-level-and-legacy-usage) API exports `SCard*` methods that are lightweight wrappers over the standard [PC/SC] API calls.
+
+2. [Application Level](#application-level-usage-example) abstractions offer a user-friendly API based on the objects such as `Context`, `Reader`, `Card`, `CommandAPDU` and `ResponseAPDU`.
+
+3. WIP: OpenMobileAPI [OMAPI]
+
+## Status
+Requires Deno 1.23.2 or greater, along with `--unstable` and `--allow-ffi` flags.
+
+Currently tested on MAC (M1) and Windows 10 64bits. Should work on linux.
+Any problems, please raise issue at (https://github.com/cryptographix/pcsc-deno). PRs welcome.
 
 # Introduction
-This module offers both low-level and high-level abstractions over the PC/SC API for accessing SMARTCARDs.
 
-1. Low-level functions `SCardxx` that roughly map onto standard [PC/SC] API calls
-2. High-level classes `FFIContext, Reader, Card, CommandAPDU, ResponseAPDU`
-3. TODO: OpenMobileAPI [OMAPI]
-
-# High level usage
-
+# Application-level usage example
 ```typescript
 import { FFIContext, CommandAPDU, PCSC, ISO7816, HEX } from 'https://<pcsc-deno-repo>/mod.ts';
 
@@ -49,23 +57,26 @@ for (const reader of readers) {
 context.shutdown();
 ```
 
-# Low-level interface
+Contains a number of utility classes for parsing/building APDUs (the base command/response structures)
+`CommandAPDU` and `ResponseAPDU`, as well as TLVs `BerTLV`.
 
-Using ffi for low-level access to PC/SC,
 
-| Function              | Async | Description |
-| --------------------- | ----- | ----------- |
-| SCardEstablishContext | | "Establish connection to PC/SC resource manager |
-| SCardReleaseContext   | | Release connection with PC/SC resource manager |
-| SCardCancel           | | Cancel ongoing card transaction |
-| SCardIsValidContext   | | Check if context still valid |
-| SCardListReaders      | x | List connected Smart card readers |
-| SCardGetReaderStatus  | x | Wait for status change on reader(s) |
-| SCardConnect          | x | Connect to card |
-| SCardStatus           |   | Verify card status |
-| SCardReconnect        | x | Reconnect to card |
-| SCardDisconnect       | x | Disconnect from card |
-| SCardTransmit         | x | Send command and wait for response from card |
+# Low-level and legacy usage
+Using FFI for low-level access to PC/SC, via 
+
+| Function                | Description |
+| ----------------------- | ----------- |
+| `SCardEstablishContext` | Establish connection to PC/SC resource manager |
+| `SCardReleaseContext`   | Release connection with PC/SC resource manager |
+| `SCardCancel`           | Cancel ongoing card transaction |
+| `SCardIsValidContext`   | Check if context still valid |
+| `SCardListReaders`      | List connected Smart card readers |
+| `SCardGetReaderStatus`  | ASYNC - Wait for status change on reader(s) |
+| `SCardConnect`          | Connect to card |
+| `SCardStatus`           | Verify card status |
+| `SCardReconnect`        | Reconnect to card |
+| `SCardDisconnect`       | Disconnect from card |
+| `SCardTransmit`         | Send command and wait for response from card |
 
 # links
 

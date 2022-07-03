@@ -3,7 +3,7 @@ import { StateFlag, StateFlags } from './pcsc.ts';
 export const DWORD_SIZE = 4;
 export const POINTER_SIZE = 8; // 64 bits only
 
-export const SCARD_ATR_SIZE = 33; //(Deno.build.os == "darwin" ? 36 : 33);
+export const SCARD_ATR_SIZE = 36; //(Deno.build.os == "darwin" ? 36 : 33);
 
 /**
  * SCARDREADER_STATE, 64bits

@@ -1,4 +1,4 @@
-import { Logger } from './logger.ts';
+import { Logger } from './utils/logger.ts';
 import { FFIContext, FFIReader, PCSC, CommandAPDU, Reader, HEX } from '../mod.ts';
 
 const context = FFIContext.establishContext();
@@ -45,13 +45,11 @@ async function testReader(reader: Reader): Promise<void> {
     const card = await reader.connect();
     Logger.detail(card);
 
-    const selectFile = CommandAPDU.from([0x00, 0xA4, 0x04, 0x00])
-      .setData([0xA0, 0x00, 0x00, 0x01, 0x54, 0x49, 0x44]);
     const selectMF = CommandAPDU.from([0x00, 0xA4, 0x00, 0x00])
       .setData([0x3f, 0x00]);
 
-    Logger.detail(HEX.toString(selectFile.toBytes()));
-    let rapdu = await card.transmitAPDU(selectFile);
+    Logger.detail(HEX.toString(selectMF.toBytes()));
+    let rapdu = await card.transmitAPDU(selectMF);
 
     Logger.detail(HEX.toString(rapdu.toBytes()));
 

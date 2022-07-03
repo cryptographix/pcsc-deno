@@ -11,12 +11,11 @@ export type { Reader, Context, Card, ReaderStatus, ReaderStatusChangeHandler } f
 export * as OMAPI from './src/omapi/omapi.ts';
 export { SECommand, SEResponse, SEService } from './src/omapi/se-service.ts';
 
-// FFI classes
 export { FFIContext } from './src/deno-pcsc-ffi/context.ts';
 export { FFIReader } from './src/deno-pcsc-ffi/reader.ts';
 export { FFICard } from './src/deno-pcsc-ffi/card.ts';
 
 // native interface
 export { CSTR } from './src/deno-pcsc-ffi/ffi-utils.ts';
-import * as nativeDenoFFI from './src/deno-pcsc-ffi/pcsc-ffi.ts';
-export { nativeDenoFFI };
+import * as libFFI from './src/deno-pcsc-ffi/pcsc-ffi.ts';
+export { libFFI };

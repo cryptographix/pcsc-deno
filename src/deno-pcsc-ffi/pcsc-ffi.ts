@@ -587,3 +587,4 @@ export class SCARDREADERSTATE_FFI extends SCARDREADERSTATE<CSTR, null> {
     data.setUint32(ATR_OFFSET, SCARD_ATR_SIZE, isWin);
   }
 }
+

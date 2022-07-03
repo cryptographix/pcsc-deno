@@ -8,7 +8,7 @@ export interface TLV {
   value: Uint8Array;
 }
 
-export type TLVParseType = "pad" | "t" | "tl" | "tlv";
+export type TLVParseType = "padding" | "t" | "tl" | "tlv";
 
 export class BerTLV implements TLV {
   #tag: number;
@@ -41,7 +41,7 @@ export class BerTLV implements TLV {
 
     res.tagOffset = off;
 
-    if ((off >= buffer.length) || (parseType == "pad")) {
+    if ((off >= buffer.length) || (parseType == "padding")) {
       return res;
     }
 
@@ -110,14 +110,16 @@ export class BerTLV implements TLV {
     return this.#value.length;
   }
 
-  get buffer() {
+  get bytes() {
 
+    // T
     let tagLenBytes: number[] = [];
     if (this.#tag >= 0x100) {
       tagLenBytes = [ (this.#tag >> 8) & 0xFF ];
     }
     tagLenBytes = [ ...tagLenBytes, this.#tag & 0xFF ];
 
+    // L
     const len = this.#value.length;
     if (len > 0xFF) {
       tagLenBytes = [ ...tagLenBytes, 0x82, (len >> 8) & 0xFF ];
@@ -126,6 +128,7 @@ export class BerTLV implements TLV {
     }
     tagLenBytes = [ ...tagLenBytes, len & 0xFF ];
 
+    // V
     const buffer = new Uint8Array( tagLenBytes.length + len);
     buffer.set( tagLenBytes, 0 );
     buffer.set( this.#value, tagLenBytes.length )

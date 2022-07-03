@@ -48,22 +48,7 @@ export class FFIContext implements Context {
 
       // got a multi-string - a double-null terminated list of null-terminated strings
       // parse and map to array of CSTR
-      const readerNames = readerNamesString.buffer
-        // find \0 terminators
-        .reduce<number[]>(
-          (acc, cur, curIdx) => (cur == 0) ? [...acc, curIdx] : acc,
-          [0],
-        )
-        // remove final "double" terminator
-        .slice(0, -1)
-        // and map to zero-copy CSTR
-        .flatMap<CSTR>((val, index, array) =>
-          (index < array.length - 1)
-            ? CSTR.fromNullTerminated(
-              readerNamesString.buffer.subarray(val, 1 + array[index + 1]),
-            )
-            : []
-        );
+      const readerNames = FFIContext.readerNamesToArray( readerNamesString.buffer );
 
       this.#updating = true;
       try {
@@ -218,6 +203,28 @@ export class FFIContext implements Context {
     if (FFIContext.isValidContext(this.#context)) {
       native.SCardCancel(this.#context);
     }
+  }
+
+  // parse PC/SC multi-string - a double-null terminated list of null-terminated strings
+  // and map to array of CSTR
+  static readerNamesToArray(readerNames: Uint8Array): CSTR[] {
+    return readerNames
+      // find \0 terminators
+      .reduce<number[]>(
+        (acc, cur, curIdx) => (cur == 0) ? [...acc, curIdx + 1] : acc,
+        [0],
+      )
+      // remove final "double" terminator
+      .slice(0, -1)
+      // and map to zero-copy CSTR
+      .flatMap<CSTR>((val, index, array) =>
+        (index < array.length - 1)
+          ? CSTR.fromNullTerminated(
+            readerNames.subarray(val, 1 + array[index + 1]),
+          )
+          : []
+      );
+
   }
 
 

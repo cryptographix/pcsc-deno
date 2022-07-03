@@ -33,16 +33,16 @@ export class CommandAPDU {
 
   public toString(): string {
     let s = "CommandAPDU ";
-    s += "cla=0x" + HEX.toString([this.cla]);
-    s += "," + "ins=0x" + HEX.toString([this.ins]);
-    s += "," + "p1=0x" + HEX.toString([this.p1]);
-    s += "," + "p2=0x" + HEX.toString([this.p2]);
+    s += "CLA=0x" + HEX.toString([this.cla]);
+    s += "," + "INS=0x" + HEX.toString([this.ins]);
+    s += "," + "P1=0x" + HEX.toString([this.p1]);
+    s += "," + "P1=0x" + HEX.toString([this.p2]);
     if (this.data && this.data.length) {
-      s += "," + "Lc=" + this.Lc;
-      s += "," + "Data=" + HEX.toString(this.data);
+      s += "," + "LC=" + this.Lc;
+      s += "," + "DATA=" + HEX.toString(this.data);
     }
     if (this.le) {
-      s += "," + "Le=" + this.le;
+      s += "," + "LE=" + this.le;
     }
 
     if (this.description) {

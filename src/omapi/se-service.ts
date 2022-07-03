@@ -148,7 +148,7 @@ class Channel implements OMAPI.Channel {
     return this.card != null;
   }
 
-  setTransmitBehaviour(expectDataWithWarningSW: boolean): void {
+  setTransmitBehaviour(_expectDataWithWarningSW: boolean): void {
     throw new Error("Method not implemented.");
   }
 
