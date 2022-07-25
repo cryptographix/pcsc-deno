@@ -1,4 +1,4 @@
-Deno FFI bindings to the PC/SC API. 
+# Deno FFI bindings to the PC/SC API. 
 
 `pcsc` provides both [Application Level](#application-level-usage-example) and [Low Level](#low-level-and-legacy-usage) abstraction of the PC/SC API for accessing ISO-7816/ISO-14433 smartcards as used in Banking (EMV / Chip-and-PIN) cards, ID cards and Passports.
 
@@ -57,7 +57,7 @@ for (const reader of readers) {
 context.shutdown();
 ```
 
-===
+---
 ## API
 
 ### Class: `ContextProvider`
@@ -86,7 +86,7 @@ after which the method will automatically resolve.
 
 ### Class: `Reader`
 
-===
+---
 # Low-level and legacy usage
 `pcsc` also provides low-level access to PC/SC via the following methods:
 
