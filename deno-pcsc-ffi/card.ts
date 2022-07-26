@@ -1,7 +1,7 @@
 import { Card, Disposition, Protocol,  SCARDHANDLE, ShareMode } from '../pcsc/pcsc.ts';
 import { ReaderStatus } from '../pcsc/context.ts';
 
-import { CommandAPDU, ResponseAPDU, SmartCardException } from '../iso7816/iso7816.ts';
+import { BytesLike, CommandAPDU, ResponseAPDU, SmartCardException } from '../iso7816/iso7816.ts';
 
 import * as native from './pcsc-ffi-wrapper.ts';
 import { FFIReader } from './reader.ts';
@@ -34,14 +34,16 @@ export class FFICard implements Card {
     return this.#handle;
   }
 
-  async transmit(command: Uint8Array, expectedLen?: number): Promise<Uint8Array> {
+  async transmit(command: BytesLike, expectedLen?: number): Promise<Uint8Array> {
     if (!this.#handle) {
       throw new SmartCardException("SmartCard disconected");
     }
 
+    const commandBuffer = BytesLike.toUint8Array(command);
+
     const response = await native.SCardTransmit(
       this.handle,
-      command,
+      commandBuffer,
       2 + (expectedLen ?? 256),
     );
 
@@ -78,7 +80,7 @@ export class FFICard implements Card {
 
     this.#protocol = protocol;
 
-    return this.reader.waitForChange();
+    return this.reader.waitForChange() as Promise<ReaderStatus>;
   }
 
   disconnect(disposition = Disposition.LeaveCard): Promise<ReaderStatus> {
@@ -95,6 +97,6 @@ export class FFICard implements Card {
       }
     }
 
-    return this.reader.waitForChange();
+    return this.reader.waitForChange() as Promise<ReaderStatus>;
   }
 }

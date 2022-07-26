@@ -1,5 +1,6 @@
 import { Disposition, Protocol, ShareMode, DWORD, StateFlags } from './pcsc.ts';
 import { CommandAPDU, ResponseAPDU } from '../iso7816/apdu.ts';
+import { BytesLike } from "../iso7816/iso7816.ts";
 
 export type ReaderStatus =
   | "setup"
@@ -43,13 +44,15 @@ export interface Reader {
 
   onStatusChange?: ReaderStatusChangeHandler;
 
-  waitForChange(timeout?: DWORD): Promise<ReaderStatus>;
+  waitForChange(timeout?: DWORD): Promise<ReaderStatus | "no-change">;
 }
 
 export interface Card {
   readonly isConnected: boolean;
 
-  transmit(commandAPDU: Uint8Array, expectedLen?: number): Promise<Uint8Array>;
+  readonly protocol: number;
+
+  transmit(commandAPDU: BytesLike, expectedLen?: number): Promise<Uint8Array>;
 
   transmitAPDU(commandAPDU: CommandAPDU): Promise<ResponseAPDU>;
 

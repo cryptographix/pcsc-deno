@@ -130,9 +130,9 @@ export abstract class SCARDREADERSTATE<TNAME = any, TUSERDATA = any> {
   static unpackStateChangeBuffer<STATE extends SCARDREADERSTATE>(
     states: STATE[],
     stateBuffer: Uint8Array,
-    alignedStateSize = SCARDREADERSTATE_SIZE): STATE[] {
+    alignedStateSize = SCARDREADERSTATE_SIZE): number[] {
 
-    const changed: STATE[] = [];
+    const changed: number[] = [];
 
     states.forEach((state, index) => {
       // update state ...
@@ -142,13 +142,10 @@ export abstract class SCARDREADERSTATE<TNAME = any, TUSERDATA = any> {
           SCARDREADERSTATE_SIZE,
         ),
       )) {
-        changed.push(state);
+        changed.push(index);
       }
     });
 
     return changed;
   }
-
-
-
 }

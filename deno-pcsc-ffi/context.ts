@@ -8,7 +8,7 @@ import { CSTR } from './ffi-utils.ts';
 
 //import { SCARDCONTEXT, Scope, StateFlag, ShareMode, Protocol } from '../pcsc/pcsc.ts';
 
-import { FFIReader } from './reader.ts';
+import { FFIReader, FFI_SCARDREADERSTATE } from './reader.ts';
 import { SCardIsValidContext } from "./pcsc-ffi-wrapper.ts";
 
 /**
@@ -40,11 +40,11 @@ export class FFIContext implements Context {
       (reader) => reader.readerState,
     );
 
-    const _changed = await native.SCardGetStatusChange(this.#context, timeout, states);
+    const changed = await native.SCardGetStatusChange(this.#context, timeout, states);
 
-    // return Readers[] that signalled state-change
-    return readers.filter((r) =>
-      r.readerState.eventState & StateFlag.Changed
+    // return all Readers[] that signalled state-change
+    return changed.flatMap(
+      chg => ( readers[ chg ].readerState.eventState & StateFlag.Changed ) ? readers[ chg ] : [] 
     );
   }
 
@@ -61,11 +61,11 @@ export class FFIContext implements Context {
       (reader) => reader.readerState,
     );
 
-    const _changed = native.SCardGetStatusChangeSync(this.#context, 0, states);
+    const changed = native.SCardGetStatusChangeSync(this.#context, 0, states);
 
     // return all Readers[] that signalled state-change
-    return readers.filter((r) =>
-      r.readerState.eventState & StateFlag.Changed
+    return changed.flatMap(
+      chg => ( readers[ chg ].readerState.eventState & StateFlag.Changed ) ? readers[ chg ] : [] 
     );
   }
 
@@ -149,7 +149,7 @@ export class FFIContext implements Context {
     this.#pnpReader = new FFIReader(this, CSTR.from("\\\\?PnP?\\Notification"));
   }
 
-  listReaders(rescan = false): Reader[] {
+  listReaders(rescan = false): FFIReader[] {
     if (rescan || this.#readers.size == 0) {
       this.#listReaders();
     }
@@ -160,9 +160,9 @@ export class FFIContext implements Context {
   async waitForChange(
     readers?: Reader[],
     timeout = 0,
-    rescan = false,
-  ): Promise<Reader[]> {
-    readers = readers ?? this.listReaders(rescan);
+    rescan = true,
+  ): Promise<FFIReader[]> {
+    readers = readers ?? this.listReaders();
 
     const readersReq = (rescan) ? [this.#pnpReader, ...readers] : readers;
 

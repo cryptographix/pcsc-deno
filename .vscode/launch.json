@@ -7,10 +7,10 @@
     {
       "request": "launch",
       "name": "deno",
-      "type": "pwa-node",
-      "program": "${workspaceFolder}/tests/test-context.ts",
+      "type": "node",
+      "program": "${workspaceFolder}/tests/context.test.ts",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "/Users/sean/.deno/bin/deno",
+      "runtimeExecutable": "deno",
       "runtimeArgs": [
         "test",
         "--unstable",

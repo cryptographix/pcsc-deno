@@ -1,4 +1,4 @@
-import { Reader, Protocol,  DWORD, ShareMode, StateFlag, SCARDREADERSTATE, StateFlags } from '../pcsc/pcsc.ts';
+import { Reader, Protocol, DWORD, ShareMode, StateFlag, SCARDREADERSTATE, StateFlags } from '../pcsc/pcsc.ts';
 import { ReaderStatus, ReaderStatusChangeHandler } from '../pcsc/context.ts';
 import { isWin, ATR_OFFSET, SCARD_ATR_SIZE } from '../pcsc/reader-state.ts';
 
@@ -32,11 +32,11 @@ export class FFIReader implements Reader {
   #status: ReaderStatus;
 
   #updateState(): void {
-    const current = this.#state.currentState;
+    //const current = this.#state.currentState;
     const event = this.#state.eventState;
     const status = this.#status;
 
-    console.log(`updateState: cur=${current.toString(16)} event=${event}`);
+    //console.log(`updateState: cur=${current.toString(16)} event=${event}`);
 
     if (this.#status == "shutdown") {
       // we're dead
@@ -99,10 +99,11 @@ export class FFIReader implements Reader {
     return this.#status;
   }
 
-  async waitForChange(timeout: DWORD = 0): Promise<ReaderStatus> {
-    await this.context.waitForChange([this], timeout);
+  async waitForChange(timeout: DWORD = 0): Promise<ReaderStatus | "no-change"> {
+    // Wait for a change on this reader ONLY.
+    const changed = await this.context.waitForChange([this], timeout, false);
 
-    return this.status;
+    return (changed.length == 1) ? this.status : "no-change";
   }
 
   get state(): StateFlags {

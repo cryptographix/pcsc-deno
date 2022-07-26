@@ -75,16 +75,17 @@ Connect to the PC/SC daemon and returns a valid [`Context`](#class-context). On 
 
 
 ### Class: `Context`
-Top level object that maintains a connection to the PC/SC daemon, and allows listing the available Card [`Reader`](#class-reader)s, detection and notification of any changes to readers. 
-After use, the `shutdown` method should be called, to release any allocated resources. 
+Top level object that maintains a connection to the PC/SC daemon, providing a list of available Card [`Reader`](#class-reader)s, along with detection and notification of any changes in readers. After use, the `shutdown` method should be called, to release any allocated resources. 
 
-#### Method: `listReaders()`
-`listReaders` scans PC/SC for a list of connected readers, and returns an array of [`Reader`](#class-reader)objects.
+#### Method: `listReaders(rescan?)`
+`listReaders` scans PC/SC for a list of connected readers, and returns an array of [`Reader`](#class-reader)objects. When `rescan` is true, forces list to be reread from PC/SC, otherwise reader list will be cached (and automatically updated during calls to `waitForChange`).
 
 #### Method: `async waitForChange()`
 `waitForChange` waits for a change - card insertion/removal or reader plug/unplug. If a notify handler 
 has been registered, that will be called once for each change detected. A `timeout` (ms) may be specified
 after which the method will automatically resolve.
+
+Returns an array of Readers that have changed, or [] when no change detected.
 
 #### Method: `shutdown()`
 `shutdown` shutsdown all `Reader`s and closed the connection to the PC/SC deamon
@@ -116,7 +117,7 @@ that will allow communication. A connection may be either SHARED or EXCLUSIVE.
 
 #### Method: `async waitForChange()`
 Waits for a change with this reader such as card insertion, removal, connection or disconnection, returning, 
-on completion, the current reader [`status`](#property-status). An optional timeout value (in ms) may be supplied, defaulting to "immediate" if absent.
+on completion, the current reader [`status`](#property-status). An optional timeout value (in ms) may be supplied, defaulting to "immediate" if absent. Should no change be detected within the specified timeout, `no-change` is returned.
 
 Upon successful completion, `waitforChange` will update internal state that can be inspected from class properties such as 
 [`state`](#property-state), [`status`](#property-status), as well as `isPresent`, `isMute` and `isConnected`.

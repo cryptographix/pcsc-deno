@@ -138,7 +138,7 @@ export class CommandAPDU {
    * Decode
    */
   static from(bytes: BytesLike, options?: { description?: string; isExtended?: boolean } ): CommandAPDU {
-    const buffer =BytesLike.toUint8Array(bytes);
+    const buffer = BytesLike.toUint8Array(bytes);
 
     if (buffer.length < 4) {
       throw new Error("CommandAPDU: Invalid buffer");

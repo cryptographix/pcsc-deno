@@ -2,6 +2,5 @@
   "tasks": {
     "test": "deno test --unstable --allow-ffi tests/*.ts",
     "test-ffi": "deno test --unstable --allow-ffi tests/ffi-pcsc.test.ts"
-  },
-  "importMap": "./vendor/import_map.json"
+  }
 }

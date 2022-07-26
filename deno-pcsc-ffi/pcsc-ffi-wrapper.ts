@@ -415,7 +415,7 @@ export async function SCardGetStatusChange(
   hContext: SCARDCONTEXT,
   timeout: DWORD,
   states: FFI_SCARDREADERSTATE[],
-): Promise<FFI_SCARDREADERSTATE[]> {
+): Promise<number[]> {
   const stateBuffer = SCARDREADERSTATE.buildStateBuffer(states);
 
   //console.log("I", HEX.toString(stateBuffer));
@@ -443,7 +443,7 @@ export function SCardGetStatusChangeSync(
   hContext: SCARDCONTEXT,
   timeout: DWORD,
   states: FFI_SCARDREADERSTATE[],
-): FFI_SCARDREADERSTATE[] {
+): number[] {
   const stateBuffer = SCARDREADERSTATE.buildStateBuffer(states);
 
   const res = libPCSC.symbols.SCardGetStatusChangeSync(
