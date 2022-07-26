@@ -137,7 +137,7 @@ export class CommandAPDU {
   /**
    * Decode
    */
-  static parse(bytes: BytesLike, options?: { description?: string; isExtended?: boolean } ): CommandAPDU {
+  static from(bytes: BytesLike, options?: { description?: string; isExtended?: boolean } ): CommandAPDU {
     const buffer =BytesLike.toUint8Array(bytes);
 
     if (buffer.length < 4) {
@@ -254,7 +254,7 @@ export class ResponseAPDU {
     return bytes;
   }
 
-  public static parse(bytes?: BytesLike, options?: {description?: string}): ResponseAPDU {
+  public static from(bytes?: BytesLike, options?: {description?: string}): ResponseAPDU {
     const buffer = BytesLike.toUint8Array(bytes);
 
     if (buffer.length < 2) {

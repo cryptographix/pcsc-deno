@@ -57,7 +57,7 @@ export class FFICard implements Card {
       2 + (commandAPDU.le ?? 0),
     );
 
-    return ResponseAPDU.parse(response);
+    return ResponseAPDU.from(response);
   }
 
   reconnect(

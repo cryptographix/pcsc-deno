@@ -202,7 +202,7 @@ export class SEResponse extends ResponseAPDU implements OMAPI.SEResponse {
   }
 
   constructor(public readonly channel: Channel, raw: Uint8Array) {
-    const resp = ResponseAPDU.parse(raw);
+    const resp = ResponseAPDU.from(raw);
 
     super(resp.SW, resp.data);
   }

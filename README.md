@@ -13,11 +13,11 @@ Currently tested on MAC (M1) and Windows 10 64bits. Should work on linux.
 Any problems, please raise issue at (https://github.com/cryptographix/pcsc-deno). PRs welcome.
 
 # Application-level API
-Use the [`ContextProvider`](###class:-contextprovider) to establish a [`Context`](###class:-context) (connection) with PC/SC, list [`Reader`](###class:-reader)s, connect to and communicate with [`Card`](###class:-card)s.
+Use the [`ContextProvider`](###class-contextprovider) to establish a [`Context`](###class-context) (connection) with PC/SC, list [`Reader`s](###class-reader)s, connect to and communicate with [`Card`s](###class-card).
 
 On Deno, `ContextProvider` defaults to the FFI implementation that requires `--unstable` and `--allow-ffi` flags to be added to `deno run` or `deno test` commands.
 
-## Example
+## Example (see examples/selecf-mf.ts)
 ```typescript
 import { ContextProvider, CommandAPDU, PCSC, ISO7816, HEX } from 'https://deno.land/x/pcsc/mod.ts';
 
@@ -33,7 +33,7 @@ for (const reader of readers) {
     const card = await reader.connect();
 
     const selectMF = CommandAPDU
-      .parse([ISO7816.CLA.ISO, ISO7816.INS.SelectFile, 0x00, 0x00]) // ISO SELECT
+      .from([ISO7816.CLA.ISO, ISO7816.INS.SelectFile, 0x00, 0x00]) // ISO SELECT
       .setData([0x3f, 0x00]);         // #3F 00 = MF
 
     const resp = await card.transmitAPDU(selectMF);
@@ -58,6 +58,12 @@ for (const reader of readers) {
 context.shutdown();
 ```
 
+Then, to run:
+```
+deno run --unstable --allow-ffi https://deno.land/x/pcsc/examples/select-mf.ts
+```
+
+
 ---
 ## API
 
@@ -65,15 +71,15 @@ context.shutdown();
 The `ContextProvider` object is a singleton registry that provides access to the PCSC context.
 
 #### method: `establishContext()`
-Connect to the PC/SC daemon and returns a valid [`Context`](###class:-context). On Deno, an instance of `FFIContext` will be returned.
+Connect to the PC/SC daemon and returns a valid [`Context`](###class-context). On Deno, an instance of `FFIContext` will be returned.
 
 
 ### Class: `Context`
-A `Context` object lists the available Card [`Reader`](###class:-reader)s and notifies a listener of any changes. After use, 
+A `Context` object lists the available Card [`Reader`](###class-reader)s and notifies a listener of any changes. After use, 
 the `shutdown` method should be called, to release any allocated resources. 
 
 #### Method: `listReaders()`
-`listReaders` scans PC/SC for a list of connected readers, and returns an array of [`Reader`](###class:-reader)objects.
+`listReaders` scans PC/SC for a list of connected readers, and returns an array of [`Reader`](###class-reader)objects.
 
 #### Method: `async waitForChange()`
 `waitForChange` waits for a change - card insertion/removal or reader plug/unplug. If a notify handler 
@@ -90,7 +96,7 @@ Set `onStatusChange` to receive notifications for reader/card events.
 x### Class: `Reader`
 
 #### Method: `async connect()`
-Attempt to connects to a card in/on the reader, and if successful, returns a [`Card`](###class:-card) object 
+Attempt to connects to a card in/on the reader, and if successful, returns a [`Card`](###class-card) object 
 that will allow communication with the card. A connection may be either SHARED or EXCLUSIVE.
 
 #### Method: `shutdown()`
@@ -144,7 +150,7 @@ Set `onStatusChange` to receive notifications for reader/card events.
 byte buffers (`Uint8Array`).
 
 #### Method: `async transmitAPDU()`
-`transmit` serializes an [`APDUCommand`](###class:-apducommand) object, transmits it to the card, waits for a response and deserializes an [`APDUResponse`](###class:-apduresponse)  object.
+`transmit` serializes an [`APDUCommand`](###class-apducommand) object, transmits it to the card, waits for a response and deserializes an [`APDUResponse`](###class-apduresponse)  object.
 
 #### Method: `reconnect()`
 `reconnect` reestablishes a connection to the card using a new set of communication parameters (protocol, shareMode), and optionally resetting 
@@ -161,22 +167,27 @@ Returns true if this card object is connected (initially true, becomes false aft
 Encapsulates an ISO7816 APDU command, allowing (de)serialization to/from byte buffers.
 
 #### Constructor: `APDUCommand()`
-Construct a new APDU command object, setting CLA, INS, P1, P2, optional DATA and LE, and extended options.
-If DATA is supplied, it can be an `Uint8Array`, a `Number[]` or any iterator that returns `Number`s.
+Construct a new APDU command object, setting `CLA`, `INS`, `P1`, `P2`, optional DATA and LE, and extended options.
+If DATA is supplied, it can be an `Uint8Array`, an array or iterator that maps to `Number[]`.
 
-Additional options may be supplied: 
-  `isExtended`: enables ISO extended-length APDUs to be used.
-  `description`: optional description (useful for logging and debugging) 
+Additional options may be supplied:
+
+| Option | Description |
+| ----- | ------ |
+| `isExtended` | Pass `true` to enable ISO extended-length APDUs |
+| `description` | optional description (useful for logging and debugging) |
+
 
 #### Method: `toBytes()`
-Serialize APDU command to a byte-buffer, correctly encoding the different ISO APDU classes (1-4). 
-If `{ isExtended: true }` was passed to constructor, enables serialization as extended-length (Lc/Le encoded on 3 bytes) when required,
-otherwise serializes as normal (short) APDU.
+Serialize APDU command to a byte-buffer, correctly encoding the different ISO APDU classes (1-4).
+
+If `{ isExtended: true }` is passed to constructor, will serialize as extended-length (Lc/Le encoded on 3 bytes) when required,
+otherwise will serialize as normal (short) APDU.
 
 #### Method: `setCLA/setINS/setP1/setP2/setData/setLe`
 Fluent (chainable) methods for building an APDU from it's constituent parts.
 
-#### Method: `static parse()`
+#### Method: `static from()`
 Static decoder, parses a byte-like buffer into an `APDUCommand` object. Current only handles non-extended length APDUs.
 
 #### Property: `cla/ins/p1/p2/data/le`
@@ -188,7 +199,7 @@ Encapsulates an ISO7816 APDU response, allowing (de)serialization to/from byte b
 
 #### Constructor: `APDUResponse()`
 Construct a new APDU response object, setting SW and DATA.
-If DATA is supplied, it can be an `Uint8Array`, a `Number[]` or any iterator that returns `Number`s.
+If DATA is supplied, it can be an `Uint8Array`, an array or iterator that maps to `Number[]`.
 
 #### Method: `toBytes()`
 Serialize APDU response to a byte-buffer. 
@@ -196,7 +207,7 @@ Serialize APDU response to a byte-buffer.
 #### Method: `setSW/setSW1/setSW2/setData`
 Fluent (chainable) methods for building a response APDU from it's constituent parts.
 
-#### Method: `static parse()`
+#### Method: `static from()`
 Static decoder, parses a byte-like buffer into an `APDUResponse` object.
 
 #### Property: `SW/data`
