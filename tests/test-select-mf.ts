@@ -12,7 +12,7 @@ for (const reader of readers) {
     const card = await reader.connect();
 
     const selectMF = CommandAPDU
-      .from([ISO7816.CLA.ISO, ISO7816.INS.SelectFile, 0x00, 0x00]) // ISO SELECT
+      .parse([ISO7816.CLA.ISO, ISO7816.INS.SelectFile, 0x00, 0x00]) // ISO SELECT
       .setData([0x3f, 0x00]);         // #3F 00 = MF
 
     const resp = await card.transmitAPDU(selectMF);

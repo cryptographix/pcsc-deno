@@ -189,7 +189,7 @@ export class SECommand extends CommandAPDU implements OMAPI.SECommand {
     le?: number,
     isExtended?: boolean,
   ) {
-    super(cla, ins, p1, p2, data, le, isExtended);
+    super(cla, ins, p1, p2, data, le, { isExtended });
   }
 }
 
@@ -202,12 +202,14 @@ export class SEResponse extends ResponseAPDU implements OMAPI.SEResponse {
   }
 
   constructor(public readonly channel: Channel, raw: Uint8Array) {
-    super(raw);
+    const resp = ResponseAPDU.parse(raw);
+
+    super(resp.SW, resp.data);
   }
 
   isStatus(sw1?: number, sw2?: number): boolean {
     return (sw1 == undefined) || sw1 == this.sw1 &&
-        (sw2 == undefined) ||
+      (sw2 == undefined) ||
       sw2 == this.sw2;
   }
 }

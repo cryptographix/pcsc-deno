@@ -8,7 +8,7 @@ export class SmartCardException extends Error {
  */
 export class CommandAPDU {
   data?: Uint8Array;
-  isExtended: boolean;
+  readonly isExtended: boolean;
   description: string;
 
   constructor(
@@ -18,14 +18,13 @@ export class CommandAPDU {
     public p2: number,
     data?: BytesLike,
     public le?: number,
-    isExtended = false,
-    options?: { description?: string }
+    options?: { description?: string; isExtended?: boolean }
   ) {
     if (data !== undefined) {
       this.data = BytesLike.toUint8Array(data);
     }
 
-    this.isExtended = isExtended ?? false;
+    this.isExtended = options?.isExtended ?? false;
 
     this.description = options?.description ?? "";
   }
@@ -44,7 +43,7 @@ export class CommandAPDU {
       s += "," + "LE=" + this.le;
     }
 
-    if (this.description) {
+    if (this.description != "") {
       s += " (" + this.description + ")";
     }
 
@@ -61,15 +60,15 @@ export class CommandAPDU {
   /**
    * Fluent Builder
    */
-  public static init(
-    cla = 0x00,
-    ins = 0x00,
-    p1 = 0x00,
-    p2 = 0x00,
-    data?: Uint8Array,
-  ): CommandAPDU {
-    return (new CommandAPDU(cla, ins, p1, p2, data));
-  }
+  // public static init(
+  //   cla = 0x00,
+  //   ins = 0x00,
+  //   p1 = 0x00,
+  //   p2 = 0x00,
+  //   data?: Uint8Array,
+  // ): CommandAPDU {
+  //   return (new CommandAPDU(cla, ins, p1, p2, data));
+  // }
 
   public setCLA(cla: number): this {
     this.cla = cla;
@@ -138,7 +137,7 @@ export class CommandAPDU {
   /**
    * Decode
    */
-  static from(bytes: BytesLike, options?: { description?: string } ): CommandAPDU {
+  static parse(bytes: BytesLike, options?: { description?: string; isExtended?: boolean } ): CommandAPDU {
     const buffer =BytesLike.toUint8Array(bytes);
 
     if (buffer.length < 4) {
@@ -148,7 +147,9 @@ export class CommandAPDU {
     const [cla, ins, p1, p2, ...rest] = buffer;
     let data;
     let le;
-    const isExtended = false;
+
+    // TODO: Decode extended APDUs
+    const isExtended = false // && options?.isExtended;
 
     let offset = 4;
 
@@ -166,7 +167,7 @@ export class CommandAPDU {
       le = buffer[offset++];
     }
 
-    const apdu = new CommandAPDU( cla, ins, p1, p2, data, le, isExtended, options);
+    const apdu = new CommandAPDU( cla, ins, p1, p2, data, le, { ...options, isExtended } );
 
     if (buffer.length != offset) {
       throw new SmartCardException("CommandAPDU: Invalid buffer");
@@ -180,7 +181,6 @@ export class CommandAPDU {
  * ISO7816 Response APDU
  */
 export class ResponseAPDU {
-  SW = 0;
   data: Uint8Array;
   description = "";
 
@@ -189,17 +189,8 @@ export class ResponseAPDU {
    *
    * Deserialize from a JSON object
    */
-  constructor(bytes: BytesLike = [], options?: {description?: string} ) {
-    const buffer =BytesLike.toUint8Array(bytes);
-
-    if (buffer.length < 2) {
-      throw new SmartCardException("ResponseAPDU Buffer invalid");
-    }
-
-    const la = buffer.length - 2;
-
-    this.SW = new DataView(buffer.buffer).getUint16(la);
-    this.data = buffer.slice(0, la);
+   constructor(public SW: number, data?: BytesLike, options?: {description?: string}) {
+    this.data = BytesLike.toUint8Array(data);
 
     this.description = options?.description ?? "";
   }
@@ -220,10 +211,6 @@ export class ResponseAPDU {
 
   public get La() {
     return this.data.length;
-  }
-
-  public static init(SW = 0x0000, data: BytesLike = []): ResponseAPDU {
-    return (new ResponseAPDU()).set(SW, data);
   }
 
   public set(sw: number, data: BytesLike): this {
@@ -267,9 +254,19 @@ export class ResponseAPDU {
     return bytes;
   }
 
-  public static from(SW: number, data?: BytesLike, options?: {description?: string}): ResponseAPDU {
-    const buffer =BytesLike.toUint8Array(data);
+  public static parse(bytes?: BytesLike, options?: {description?: string}): ResponseAPDU {
+    const buffer = BytesLike.toUint8Array(bytes);
 
-    return new ResponseAPDU([...buffer, SW >> 8, SW & 0xff], options);
+    if (buffer.length < 2) {
+      throw new SmartCardException("ResponseAPDU Buffer invalid");
+    }
+  
+    const la = buffer.length - 2;
+  
+    const SW = new DataView(buffer.buffer).getUint16(la);
+    const data = buffer.slice(0, la);
+  
+  
+    return new ResponseAPDU(SW, data, options);
   }
 }

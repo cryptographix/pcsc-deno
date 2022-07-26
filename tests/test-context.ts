@@ -45,7 +45,7 @@ async function testReader(reader: Reader): Promise<void> {
     const card = await reader.connect();
     Logger.detail(card);
 
-    const selectMF = CommandAPDU.from([0x00, 0xA4, 0x00, 0x00])
+    const selectMF = CommandAPDU.parse([0x00, 0xA4, 0x00, 0x00])
       .setData([0x3f, 0x00]);
 
     Logger.detail(HEX.toString(selectMF.toBytes()));
@@ -54,7 +54,7 @@ async function testReader(reader: Reader): Promise<void> {
     Logger.detail(HEX.toString(rapdu.toBytes()));
 
     rapdu = await card.transmitAPDU(
-      CommandAPDU.from([0x00, 0xC0, 0x00, 0x00, rapdu.SW & 0xff]),
+      CommandAPDU.parse([0x00, 0xC0, 0x00, 0x00, rapdu.SW & 0xff]),
     );
     Logger.detail(HEX.toString(rapdu.toBytes()));
 

@@ -1,4 +1,4 @@
-import { Reader, Protocol,  DWORD, ShareMode, StateFlag, SCARDREADERSTATE } from '../pcsc/pcsc.ts';
+import { Reader, Protocol,  DWORD, ShareMode, StateFlag, SCARDREADERSTATE, StateFlags } from '../pcsc/pcsc.ts';
 import { ReaderStatus, ReaderStatusChangeHandler } from '../pcsc/context.ts';
 import { isWin, ATR_OFFSET, SCARD_ATR_SIZE } from '../pcsc/reader-state.ts';
 
@@ -6,7 +6,6 @@ import { CSTR } from './ffi-utils.ts';
 
 import { FFIContext } from './context.ts';
 import { FFICard } from './card.ts';
-
 
 export class FFI_SCARDREADERSTATE extends SCARDREADERSTATE<CSTR, null> {
   protected initBuffer() {
@@ -31,74 +30,6 @@ export class FFI_SCARDREADERSTATE extends SCARDREADERSTATE<CSTR, null> {
 export class FFIReader implements Reader {
   #state: FFI_SCARDREADERSTATE;
   #status: ReaderStatus;
-
-  constructor(
-    public readonly context: FFIContext,
-    readerName: CSTR,
-  ) {
-    this.#state = new FFI_SCARDREADERSTATE(
-      readerName,
-      null,
-      () => {
-        this.#updateState();
-      },
-    );
-    this.#status = "setup";
-  }
-
-  shutdown() {
-    this.#status = "shutdown";
-  }
-
-  onStatusChange?: ReaderStatusChangeHandler;
-
-  get name() {
-    return this.#state.name.toString();
-  }
-
-  get status(): ReaderStatus {
-    return this.#status;
-  }
-
-  async waitForChange(_timeout: DWORD = 0): Promise<ReaderStatus> {
-    await this.context.waitForChange([this], 0);
-
-    return this.status;
-  }
-
-  get state(): StateFlag {
-    return this.#state.currentState;
-  }
-
-  get isPresent(): boolean {
-    return (this.#state.currentState & StateFlag.Present) != 0;
-  }
-  get isConnected(): boolean {
-    return (this.#state.currentState & StateFlag.Inuse) != 0;
-  }
-  get isMute(): boolean {
-    return (this.#state.currentState & StateFlag.Mute) != 0;
-  }
-
-  /**
-   * Connect to card
-   */
-  connect(
-    shareMode = ShareMode.Shared,
-    supportedProtocols = Protocol.Any,
-  ): Promise<FFICard> {
-    const { handle, protocol } = this.context.connect(
-      this.#state.name,
-      shareMode,
-      supportedProtocols,
-    );
-
-    return Promise.resolve(new FFICard(this, handle, protocol));
-  }
-
-  get readerState(): FFI_SCARDREADERSTATE {
-    return this.#state;
-  }
 
   #updateState(): void {
     const current = this.#state.currentState;
@@ -138,6 +69,74 @@ export class FFIReader implements Reader {
     if (this.onStatusChange !== undefined) {
       this.onStatusChange(this, this.status);
     }
+  }
+
+  constructor(
+    public readonly context: FFIContext,
+    readerName: CSTR,
+  ) {
+    this.#state = new FFI_SCARDREADERSTATE(
+      readerName,
+      null,
+      () => {
+        this.#updateState();
+      },
+    );
+    this.#status = "setup";
+  }
+
+  shutdown() {
+    this.#status = "shutdown";
+  }
+
+  onStatusChange?: ReaderStatusChangeHandler;
+
+  get name() {
+    return this.#state.name.toString();
+  }
+
+  get status(): ReaderStatus {
+    return this.#status;
+  }
+
+  async waitForChange(timeout: DWORD = 0): Promise<ReaderStatus> {
+    await this.context.waitForChange([this], timeout);
+
+    return this.status;
+  }
+
+  get state(): StateFlags {
+    return this.#state.currentState;
+  }
+
+  get isPresent(): boolean {
+    return (this.#state.currentState & StateFlag.Present) != 0;
+  }
+  get isConnected(): boolean {
+    return (this.#state.currentState & StateFlag.Inuse) != 0;
+  }
+  get isMute(): boolean {
+    return (this.#state.currentState & StateFlag.Mute) != 0;
+  }
+
+  /**
+   * Connect to card
+   */
+  connect(
+    shareMode = ShareMode.Shared,
+    supportedProtocols = Protocol.Any,
+  ): Promise<FFICard> {
+    const { handle, protocol } = this.context.connect(
+      this.#state.name,
+      shareMode,
+      supportedProtocols,
+    );
+
+    return Promise.resolve(new FFICard(this, handle, protocol));
+  }
+
+  get readerState(): FFI_SCARDREADERSTATE {
+    return this.#state;
   }
 
   static isValidReader(reader: Reader): reader is FFIReader {

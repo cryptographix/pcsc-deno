@@ -29,22 +29,25 @@ export interface Context { //<Card extends Card = Card, Reader extends Reader<Ca
 export interface Reader {
   readonly name: string;
 
-  connect(shareMode?: ShareMode, preferredProtocols?: Protocol): Promise<Card>;
+  readonly isPresent: boolean;
+
+  readonly isConnected: boolean;
+
+  readonly isMute: boolean;
 
   readonly status: ReaderStatus;
+
   readonly state: StateFlags;
+
+  connect(shareMode?: ShareMode, preferredProtocols?: Protocol): Promise<Card>;
 
   onStatusChange?: ReaderStatusChangeHandler;
 
   waitForChange(timeout?: DWORD): Promise<ReaderStatus>;
-
-  readonly isPresent: boolean;
-  readonly isConnected: boolean;
-  readonly isMute: boolean;
 }
 
 export interface Card {
-  isConnected: boolean;
+  readonly isConnected: boolean;
 
   transmit(commandAPDU: Uint8Array, expectedLen?: number): Promise<Uint8Array>;
 
