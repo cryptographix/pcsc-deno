@@ -13,7 +13,7 @@ Currently tested on MAC (M1) and Windows 10 64bits. Should work on linux.
 Any problems, please raise issue at (https://github.com/cryptographix/pcsc-deno). PRs welcome.
 
 # Application-level API
-Use the [`ContextProvider`](###class-contextprovider) to establish a [`Context`](###class-context) (connection) with PC/SC, list [`Reader`s](###class-reader)s, connect to and communicate with [`Card`s](###class-card).
+Use the [`ContextProvider`](#class-contextprovider) to establish a [`Context`](#class-context) (connection) with PC/SC, list [`Reader`s](#class-reader)s, connect to and communicate with [`Card`s](#class-card).
 
 On Deno, `ContextProvider` defaults to the FFI implementation that requires `--unstable` and `--allow-ffi` flags to be added to `deno run` or `deno test` commands.
 
@@ -71,15 +71,15 @@ deno run --unstable --allow-ffi https://deno.land/x/pcsc/examples/select-mf.ts
 The `ContextProvider` object is a singleton registry that provides access to the PCSC context.
 
 #### method: `establishContext()`
-Connect to the PC/SC daemon and returns a valid [`Context`](###class-context). On Deno, an instance of `FFIContext` will be returned.
+Connect to the PC/SC daemon and returns a valid [`Context`](#class-context). On Deno, an instance of `FFIContext` will be returned.
 
 
 ### Class: `Context`
-A `Context` object lists the available Card [`Reader`](###class-reader)s and notifies a listener of any changes. After use, 
-the `shutdown` method should be called, to release any allocated resources. 
+Top level object that maintains a connection to the PC/SC daemon, and allows listing the available Card [`Reader`](#class-reader)s, detection and notification of any changes to readers. 
+After use, the `shutdown` method should be called, to release any allocated resources. 
 
 #### Method: `listReaders()`
-`listReaders` scans PC/SC for a list of connected readers, and returns an array of [`Reader`](###class-reader)objects.
+`listReaders` scans PC/SC for a list of connected readers, and returns an array of [`Reader`](#class-reader)objects.
 
 #### Method: `async waitForChange()`
 `waitForChange` waits for a change - card insertion/removal or reader plug/unplug. If a notify handler 
@@ -90,25 +90,36 @@ after which the method will automatically resolve.
 `shutdown` shutsdown all `Reader`s and closed the connection to the PC/SC deamon
 
 #### Property: `onStatusChange`
-Set `onStatusChange` to receive notifications for reader/card events.
+Set `onStatusChange` to receive notifications for reader/card events. The supplied callback will be called with a `reader` object and a `status` indicative of the motive (type of change).
 
+| Status      | Description |
+| ------------| ----------- |
+| `setup`     | New reader detected (or plugged in) |
+| `empty`     | No card present |
+| `present`   | Card present but not connected |
+| `connected` | Card present and connected |
+| `mute`      | Non-responsive card present |
+| `shutdown`  | Reader can no longer be used - unplugged or `shutdown`  |
 
-x### Class: `Reader`
+Note: if `onStatusChange` is set before the first call to `waitForChange`, then the callback will be notified once for each
+reader detected, with status `setup`. From that point on, further calls to `waitForChange` will automatically detect any 
+newly inserted (plugged-in) or removed (unplugged) readers and notify with `setup` ou `shutdown` status's respectively.
+
+### Class: `Reader`
 
 #### Method: `async connect()`
-Attempt to connects to a card in/on the reader, and if successful, returns a [`Card`](###class-card) object 
-that will allow communication with the card. A connection may be either SHARED or EXCLUSIVE.
+Attempt to connect to a card, and if successful, returns a [`Card`](#class-card) object 
+that will allow communication. A connection may be either SHARED or EXCLUSIVE.
 
 #### Method: `shutdown()`
 `shutdown` shutsdown and cleans up the reader object. 
 
 #### Method: `async waitForChange()`
 Waits for a change with this reader such as card insertion, removal, connection or disconnection, returning, 
-on completion, the current reader [`status`](####property:-status). 
-An optional timeout value (in ms) may be supplied, defaulting to "immediate" if absent.
+on completion, the current reader [`status`](#property-status). An optional timeout value (in ms) may be supplied, defaulting to "immediate" if absent.
 
 Upon successful completion, `waitforChange` will update internal state that can be inspected from class properties such as 
-[`state`](####property:-state), [`status`](####property:-status), as well as `isPresent`, `isMute` and `isConnected`.
+[`state`](#property-state), [`status`](#property-status), as well as `isPresent`, `isMute` and `isConnected`.
 
 #### Property: `name`
 Returns reader name as string.
@@ -117,30 +128,23 @@ Returns reader name as string.
 Return PC/SC `currentState` bits, a set of `StateFlag` bits, as seen during most recent call to `waitForChange`
 
 #### Property: `status`
-Returns the reader status as seen during most recent call to `waitForChange` on `Reader`/`Context`
-| Status      | Description |
-| ------------| ----------- |
-| `setup`     | Initial state, used internally |
-| `empty`     | No card present |
-| `present`   | Card present but not connected |
-| `connected` | Card present and connected |
-| `mute`      | Non-responsive card present |
-| `shutdown`  | Reader can no longer be used - `shutdown` was called on `Reader` or `Context` objects |
+Returns the reader status as seen during most recent call to `waitForChange` on `Reader`/`Context`, see [Context.onStatusChange](#property-onstatuschange)
+
 
 #### Property: `isPresent`
-Returns true if a card is present in/on the reader. See `status` property.
+Returns true if a card is present (inserted or within contactless range). See `status` property.
 
 #### Property: `isMute`
-Returns true if a non-responsive card is in/on the reader. See `status` property.
+Returns true if a non-responsive card is detected. See `status` property.
 
 #### Property: `isConnected`
-Returns true if a card is in/on the reader and is connected. See `status` property.
+Returns true if a card is present AND connected. See `status` property.
 
 #### Property: `readerState` (only on FFIReader class)
 Returns an instance of PC/SC `SCARDREADERSTATE` containing name, current state flags and ATR.
 
 #### Property: `onStatusChange`
-Set `onStatusChange` to receive notifications for reader/card events.
+Set `onStatusChange` to receive notifications for reader/card events, for current reader only.
 
 
 ### Class: `Card`
@@ -150,7 +154,7 @@ Set `onStatusChange` to receive notifications for reader/card events.
 byte buffers (`Uint8Array`).
 
 #### Method: `async transmitAPDU()`
-`transmit` serializes an [`APDUCommand`](###class-apducommand) object, transmits it to the card, waits for a response and deserializes an [`APDUResponse`](###class-apduresponse)  object.
+`transmit` serializes an [`APDUCommand`](#class-apducommand) object, transmits it to the card, waits for a response and deserializes an [`APDUResponse`](#class-apduresponse)  object.
 
 #### Method: `reconnect()`
 `reconnect` reestablishes a connection to the card using a new set of communication parameters (protocol, shareMode), and optionally resetting 
