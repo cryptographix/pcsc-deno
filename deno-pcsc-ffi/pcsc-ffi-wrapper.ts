@@ -12,7 +12,7 @@ import {
   ShareMode,
 } from '../pcsc/pcsc.ts';
 
-import { isWin, DWORD_SIZE, POINTER_SIZE } from '../pcsc/reader-state.ts';
+import { isWin, isLinux, DWORD_SIZE, POINTER_SIZE } from '../pcsc/reader-state.ts';
 import { FFI_SCARDREADERSTATE } from './reader.ts';
 
 const libPath = {
@@ -24,18 +24,18 @@ const libPath = {
 // PC/SC HANDLE
 // Darwin (M1, ?) and linux, via pcsclite, use DWORD
 // Windows x64 (winscard.dll) uses a long long 
-const FFI_PCSC_HANDLE = isWin ? "pointer" : "usize";
-const FFI_PCSC_HANDLE_SIZE = isWin ? POINTER_SIZE : DWORD_SIZE;
+const FFI_PCSC_HANDLE = (isWin||isLinux) ? "buffer" : "usize";
+const FFI_PCSC_HANDLE_SIZE = (isWin||isLinux) ? POINTER_SIZE : DWORD_SIZE;
 
 const libPCSC = Deno.dlopen(
   libPath[Deno.build.os],
   {
     SCardEstablishContext: {
-      parameters: ["u32", "usize", "usize", "pointer"],
+      parameters: ["u32", "usize", "usize", "buffer"],
       result: "u32",
     },
     SCardListReaders: {
-      parameters: [FFI_PCSC_HANDLE, "pointer", "pointer", "pointer"],
+      parameters: [FFI_PCSC_HANDLE, "buffer", "buffer", "buffer"],
       result: "u32",
       name: `SCardListReaders${isWin ? "A" : ""}`,
     },
@@ -52,23 +52,23 @@ const libPCSC = Deno.dlopen(
       result: "u32",
     },
     SCardGetStatusChange: {
-      parameters: [FFI_PCSC_HANDLE, "u32", "pointer", "u32"],
+      parameters: [FFI_PCSC_HANDLE, "u32", "buffer", "u32"],
       nonblocking: true,
       result: "u32",
       name: `SCardGetStatusChange${isWin ? "A" : ""}`,
     },
     SCardGetStatusChangeSync: {
-      parameters: [FFI_PCSC_HANDLE, "u32", "pointer", "u32"],
+      parameters: [FFI_PCSC_HANDLE, "u32", "buffer", "u32"],
       result: "u32",
       name: `SCardGetStatusChange${isWin ? "A" : ""}`,
     },
     SCardConnect: {
-      parameters: [FFI_PCSC_HANDLE, "pointer", "u32", "u32", "pointer", "pointer"],
+      parameters: [FFI_PCSC_HANDLE, "buffer", "u32", "u32", "buffer", "buffer"],
       result: "u32",
       name: `SCardConnect${isWin ? "A" : ""}`,
     },
     "SCardReconnect": {
-      parameters: [FFI_PCSC_HANDLE, "u32", "u32", "u32", "pointer"],
+      parameters: [FFI_PCSC_HANDLE, "u32", "u32", "u32", "buffer"],
       result: "u32",
     },
     "SCardDisconnect": {
@@ -86,12 +86,12 @@ const libPCSC = Deno.dlopen(
     "SCardTransmit": {
       parameters: [
         FFI_PCSC_HANDLE,
-        "pointer",
-        "pointer",
+        "buffer",
+        "buffer",
         "u32",
-        "pointer",
-        "pointer",
-        "pointer",
+        "buffer",
+        "buffer",
+        "buffer",
       ],
       nonblocking: true,
       result: "u32",
@@ -99,12 +99,12 @@ const libPCSC = Deno.dlopen(
     "SCardTransmitSync": {
       parameters: [
         FFI_PCSC_HANDLE,
-        "pointer",
-        "pointer",
+        "buffer",
+        "buffer",
         "u32",
-        "pointer",
-        "pointer",
-        "pointer",
+        "buffer",
+        "buffer",
+        "buffer",
       ],
       result: "u32",
       name: `SCardTransmit`,
@@ -112,12 +112,12 @@ const libPCSC = Deno.dlopen(
     SCardStatus: {
       parameters: [
         FFI_PCSC_HANDLE,
-        "pointer",
-        "pointer",
-        "pointer",
-        "pointer",
-        "pointer",
-        "pointer",
+        "buffer",
+        "buffer",
+        "buffer",
+        "buffer",
+        "buffer",
+        "buffer",
       ],
       result: "u32",
       name: `SCardStatus${isWin ? "A" : ""}`,
@@ -126,20 +126,20 @@ const libPCSC = Deno.dlopen(
       parameters: [
         FFI_PCSC_HANDLE,
         "u32",
-        "pointer",
+        "buffer",
         "u32",
-        "pointer",
+        "buffer",
         "u32",
-        "pointer",
+        "buffer",
       ],
       result: "u32",
     },
     SCardGetAttrib: {
-      parameters: [FFI_PCSC_HANDLE, "u32", "pointer", "pointer"],
+      parameters: [FFI_PCSC_HANDLE, "u32", "buffer", "buffer"],
       result: "u32",
     },
     SCardSetAttrib: {
-      parameters: [FFI_PCSC_HANDLE, "u32", "pointer", "u32"],
+      parameters: [FFI_PCSC_HANDLE, "u32", "buffer", "u32"],
       result: "u32",
     },
   }
@@ -277,12 +277,14 @@ export function SCardDisconnect(
   );
 }
 
-function prepareTransmit(recvLength: DWORD) {
-  const pioSendPci = new Uint8Array(8);
-  new DataView(pioSendPci.buffer).setUint32(0, 1, true);
-  new DataView(pioSendPci.buffer).setUint32(4, 8, true);
+function prepareTransmit(recvLength: DWORD, activeProtocol: DWORD) {
+  const PIO_SIZE = 2 * DWORD_SIZE;
 
-  const pioRecvPci = new Uint8Array(8);
+  const pioSendPci = new Uint8Array(PIO_SIZE);
+  new DataView(pioSendPci.buffer).setUint32(0, activeProtocol, true);
+  new DataView(pioSendPci.buffer).setUint32(DWORD_SIZE, PIO_SIZE, true);
+
+  const pioRecvPci = new Uint8Array(PIO_SIZE);
   pioRecvPci.set(pioSendPci);
 
   const recvBuffer = new Uint8Array(recvLength + 2);
@@ -302,9 +304,10 @@ function prepareTransmit(recvLength: DWORD) {
 export async function SCardTransmit(
   hCard: SCARDHANDLE,
   sendBuffer: Uint8Array,
-  recvLength: DWORD,
+  recvLength: DWORD, 
+  activeProtocol: DWORD,
 ): Promise<Uint8Array> {
-  const { pioSendPci, pioRecvPci, recvBuffer, recvLengthBuffer } = prepareTransmit(recvLength);
+  const { pioSendPci, pioRecvPci, recvBuffer, recvLengthBuffer } = prepareTransmit(recvLength, activeProtocol);
 
   ensureSCardSuccess(
     await libPCSC.symbols.SCardTransmit(
@@ -328,8 +331,9 @@ export function SCardTransmitSync(
   hCard: SCARDHANDLE,
   sendBuffer: Uint8Array,
   recvLength: DWORD,
+  activeProtocol: DWORD,
 ): Uint8Array {
-  const { pioSendPci, pioRecvPci, recvBuffer, recvLengthBuffer } = prepareTransmit(recvLength);
+  const { pioSendPci, pioRecvPci, recvBuffer, recvLengthBuffer } = prepareTransmit(recvLength, activeProtocol);
 
   ensureSCardSuccess(
     libPCSC.symbols.SCardTransmitSync(

@@ -38,7 +38,7 @@ export function findCards() {
     const changed = libFFI.SCardGetStatusChangeSync(context, 0, [state]);
 
     if (changed.length != 0) {
-      const stateFlags = changed[0].currentState & (StateFlag.Present | StateFlag.Mute);
+      const stateFlags = state.currentState & (StateFlag.Present | StateFlag.Mute);
 
       // Ignore MUTE cards
       if (stateFlags == StateFlag.Present) {

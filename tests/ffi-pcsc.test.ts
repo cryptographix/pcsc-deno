@@ -1,4 +1,4 @@
-import { StateFlag, ShareMode, Protocol, Disposition, SCARDCONTEXT, SCARDHANDLE } from '../pcsc/pcsc.ts';
+import { StateFlag, ShareMode, Protocol, Disposition, SCARDCONTEXT, SCARDHANDLE, DWORD } from '../pcsc/pcsc.ts';
 import { CSTR, libFFI, FFI_SCARDREADERSTATE } from '../deno-pcsc-ffi/deno-pcsc-ffi.ts';
 import { HEX } from '../mod.ts';
 
@@ -25,9 +25,10 @@ Deno.test("Correctly handles initial GetStatusChange", async ({step}) => {
       const state = new FFI_SCARDREADERSTATE(reader);
       const changed = libFFI.SCardGetStatusChangeSync(context, 0, [state]);
 
-      assertExists(changed, "returns SCARDREADERSTATE[]");
-      assert(changed.length == 1, "Initially state=UNKNOWN");
-      assert(changed[0].eventState & StateFlag.Changed, "Signalled CHANGED");
+      assertExists(changed, "returns  changedIndex[]");
+      assert(changed.length == 1, "changed length == 1");
+      assert(changed[0] === 0, "changed[0] == 0");
+      assert(state.eventState & StateFlag.Changed, "Signalled CHANGED");
     });
   }
 
@@ -57,7 +58,7 @@ Deno.test({
           });
 
           // Connect
-          const { handle: card } = libFFI.SCardConnect(
+          const { handle: card, protocol } = libFFI.SCardConnect(
             context,
             reader,
             ShareMode.Shared,
@@ -65,7 +66,7 @@ Deno.test({
           );
 
           await step("Can select MF", () => {
-            testCardSelectMF(card);
+            testCardSelectMF(card, protocol);
           });
         }
       });
@@ -125,8 +126,8 @@ function testReaderStatusChange(context: SCARDCONTEXT, reader: CSTR) {
   // PRESENT + INUSE
   let changed = libFFI.SCardGetStatusChangeSync(context, 0, [state]);
   Logger.detail("State after initial CONNECT", state.currentState.toString(16));
-  assertEquals(changed.length, 1, "GetStatusChange() returns changed READERSTATE");
-  assertEquals(changed[0], state, "GetStatusChange() returns state object");
+  assertEquals(changed.length, 1, "GetStatusChange() returns index of changed READERSTATE");
+//  assertEquals(changed[0], state, "GetStatusChange() returns state object");
   assertEquals(state.eventState & StateFlag.Changed, StateFlag.Changed, "GetStatusChange(): eventState includes CHANGED");
   assertEquals(state.currentState & StateFlag.Changed, 0, "GetStatusChange: currentState without CHANGED flag");
 
@@ -185,11 +186,11 @@ function testReaderStatusChange(context: SCARDCONTEXT, reader: CSTR) {
   assertEquals(state.currentState & flagMask, StateFlag.Present, "Disconnect(LEAVE) -> present");
 }
 
-function testCardSelectMF(card: SCARDHANDLE) {
+function testCardSelectMF(card: SCARDHANDLE, protocol: DWORD) {
   const selectMF = [0x00, 0xA4, 0x00, 0x00, 0x02, 0x3F, 0x00];
   Logger.detail(`Transmit: Select MF (${HEX.toString(selectMF)})`);
 
-  const rapdu = libFFI.SCardTransmitSync(card, Uint8Array.from(selectMF), 256);
+  const rapdu = libFFI.SCardTransmitSync(card, Uint8Array.from(selectMF), 258, protocol);
   Logger.detail(`Received: (${HEX.toString(rapdu)})`);
 
   assertEquals(HEX.toString(rapdu), "90 00", "Select MF returns 0x9000");

@@ -1,21 +1,23 @@
 import { StateFlag, StateFlags } from './pcsc.ts';
 
-export const isWin = (typeof Deno != "undefined") ? Deno.build.os == "windows" : false;
+export const osType = (typeof Deno != "undefined") ? Deno.build.os : "";
+export const isWin = osType == "windows";
+export const isLinux = osType == "linux";
 
-export const DWORD_SIZE = 4;
+export const DWORD_SIZE = isLinux ? 8 : 4;
 export const POINTER_SIZE = 8; // 64 bits only
 
 export const SCARD_ATR_SIZE = (isWin ? 33 : 36);
 
 /**
  * SCARDREADER_STATE, 64bits
- * 
- * [ 00 .. 07 ]   Pointer to READER_NAME
- * [ 08 .. 0F ]   Pointer to UserData 
- * [ 10 .. 13 ]   Current State
- * [ 14 .. 17 ]   Actual State
- * [ 18 .. 1B ]   ATR (size)
- * [ 1C .. 3F ]   ATR[36]
+ *   Win/MacOs    Linux
+ * [ 00 .. 07 ]                  Pointer to READER_NAME
+ * [ 08 .. 0F ]                  Pointer to UserData 
+ * [ 10 .. 13 ]   [ 10 .. 17 ]   Current State
+ * [ 14 .. 17 ]   [ 18 .. 1F ]   Actual State
+ * [ 18 .. 1B ]   [ 20 .. 27 ]   ATR (size)
+ * [ 1C .. 3F ]   [ 28 .. 4F ]   ATR[33 or 36]
  * 
  */
 export const CURRENT_STATE_OFFSET = POINTER_SIZE + POINTER_SIZE;

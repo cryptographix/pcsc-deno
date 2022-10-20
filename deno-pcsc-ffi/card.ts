@@ -1,4 +1,4 @@
-import { Card, Disposition, Protocol,  SCARDHANDLE, ShareMode } from '../pcsc/pcsc.ts';
+import { Card, Disposition, Protocol, SCARDHANDLE, ShareMode } from '../pcsc/pcsc.ts';
 import { ReaderStatus } from '../pcsc/context.ts';
 
 import { BytesLike, CommandAPDU, ResponseAPDU, SmartCardException } from '../iso7816/iso7816.ts';
@@ -45,6 +45,7 @@ export class FFICard implements Card {
       this.handle,
       commandBuffer,
       2 + (expectedLen ?? 256),
+      this.#protocol,
     );
 
     return Promise.resolve(response);
@@ -57,6 +58,7 @@ export class FFICard implements Card {
       this.handle,
       commandBytes,
       2 + (commandAPDU.le ?? 0),
+      this.#protocol,
     );
 
     return ResponseAPDU.from(response);
