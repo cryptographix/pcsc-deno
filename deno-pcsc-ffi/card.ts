@@ -52,7 +52,7 @@ export class FFICard implements Card {
   }
 
   async transmitAPDU(commandAPDU: CommandAPDU): Promise<ResponseAPDU> {
-    const commandBytes = commandAPDU.toBytes({ protocol: this.#protocol });
+    const commandBytes = commandAPDU.toBytes({ isT0: this.#protocol == Protocol.T0 });
 
     const response = await native.SCardTransmit(
       this.handle,

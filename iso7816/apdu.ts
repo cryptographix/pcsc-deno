@@ -1,3 +1,4 @@
+import { Protocol } from "../pcsc/scard.ts";
 import { BytesLike, HEX } from './buffer-utils.ts';
 
 export class SmartCardException extends Error {
@@ -102,8 +103,8 @@ export class CommandAPDU {
   /**
    * Encode - returns an Uint8Array from the CommandAPDU object
    */
-  public toBytes(options?: { protocol?: number}): Uint8Array {
-    const isT0 = (options?.protocol ?? 1) == 0;
+  public toBytes(options: { isT0?: boolean } = { isT0: true }): Uint8Array {
+    const isT0 = options.isT0 ?? false;
     const lc = this.data?.length ?? 0;
     const isExtended = (this.isExtended ?? false) && !isT0;
     const le = (lc == 0 || !isT0) ? (this.le ?? 0) : 0;
