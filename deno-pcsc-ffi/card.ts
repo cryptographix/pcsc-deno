@@ -1,4 +1,4 @@
-import { Card, Disposition, Protocol,  SCARDHANDLE, ShareMode } from '../pcsc/pcsc.ts';
+import { Card, Disposition, Protocol, SCARDHANDLE, ShareMode } from '../pcsc/pcsc.ts';
 import { ReaderStatus } from '../pcsc/context.ts';
 
 import { BytesLike, CommandAPDU, ResponseAPDU, SmartCardException } from '../iso7816/iso7816.ts';
