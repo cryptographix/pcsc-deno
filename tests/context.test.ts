@@ -1,8 +1,8 @@
-import { ContextProvider, PCSC, CommandAPDU, Reader, HEX, Context, Card } from '../mod.ts';
+import { ContextProvider, Reader, HEX, Card } from '../mod.ts';
 import { Disposition, Protocol, ShareMode, StateFlag } from "../pcsc/scard.ts";
 import { Logger } from './utils/logger.ts';
 
-import { assert, assertEquals, assertExists } from 'https://deno.land/std@0.146.0/testing/asserts.ts';
+import { assert, assertEquals } from 'https://deno.land/std@0.146.0/testing/asserts.ts';
 import { FFIContext, FFIReader } from "../deno-pcsc-ffi/deno-pcsc-ffi.ts";
 
 /*async function testReader(reader: Reader): Promise<void> {
@@ -110,12 +110,15 @@ function findCards() {
   }
 }
 
-Deno.test("Can establish context and list readers", () => {
+const context = ContextProvider.establishContext() as FFIContext;
+context.waitForChange([], 0, true);
+
+Deno.test("Can establish context and list readers", async () => {
   const { context, readers } = getContext();
 
   Logger.info("Readers:", readers.map((r) => r.name.toString()).join(", "));
 
-  context.shutdown();
+  await context.shutdown();
 });
 
 Deno.test("Correctly handles waitForChange", async ({step}) => {
@@ -129,7 +132,7 @@ Deno.test("Correctly handles waitForChange", async ({step}) => {
     });
   }
 
-  context.shutdown();
+  await context.shutdown();
 });
 
 Deno.test({
@@ -167,7 +170,7 @@ Deno.test({
       });
     }
 
-    context.shutdown();
+    await context.shutdown();
   }
 });
 
@@ -195,7 +198,7 @@ async function testReaderConnectDisconnect(reader: Reader) {
   assertEquals(protocol, card.protocol, "Same protocol after RECONNECT+LEAVE")
 
   // Disconnect
-  card.disconnect(
+  await card.disconnect(
     Disposition.UnpowerCard
   );
 }

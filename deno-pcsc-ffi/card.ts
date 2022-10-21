@@ -23,7 +23,7 @@ export class FFICard implements Card {
   }
 
   get isConnected(): boolean {
-    return this.reader.status != "connected";
+    return this.#handle != 0;
   }
 
   get protocol() {
@@ -45,6 +45,7 @@ export class FFICard implements Card {
       this.handle,
       commandBuffer,
       2 + (expectedLen ?? 256),
+      this.#protocol,
     );
 
     return Promise.resolve(response);
@@ -56,7 +57,8 @@ export class FFICard implements Card {
     const response = await native.SCardTransmit(
       this.handle,
       commandBytes,
-      2 + (commandAPDU.le ?? 0),
+      2 + (commandAPDU.le ?? 256),
+      this.#protocol,
     );
 
     return ResponseAPDU.from(response);
@@ -71,14 +73,22 @@ export class FFICard implements Card {
       throw new SmartCardException("SmartCard disconected");
     }
 
-    const { protocol } = native.SCardReconnect(
-      this.#handle,
-      shareMode,
-      preferredProtocols,
-      initialization,
-    );
-
-    this.#protocol = protocol;
+    this.#protocol = 0;
+    try {
+      const { protocol } = native.SCardReconnect(
+        this.#handle,
+        shareMode,
+        preferredProtocols,
+        initialization,
+      );
+  
+      this.#protocol = protocol;
+    }
+    finally {
+      // If reconnect failed, handle is no longer valid
+      if (this.#protocol == 0) 
+        this.#handle = 0;
+    }
 
     return this.reader.waitForChange() as Promise<ReaderStatus>;
   }

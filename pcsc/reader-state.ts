@@ -1,27 +1,23 @@
 import { StateFlag, StateFlags } from './pcsc.ts';
+import { PLATFORM } from './platform.ts';
 
-export const isWin = (typeof Deno != "undefined") ? Deno.build.os == "windows" : false;
-
-export const DWORD_SIZE = 4;
-export const POINTER_SIZE = 8; // 64 bits only
-
-export const SCARD_ATR_SIZE = (isWin ? 33 : 36);
+export const SCARD_ATR_SIZE = PLATFORM.isWin ? 33 : 36;
 
 /**
  * SCARDREADER_STATE, 64bits
- * 
- * [ 00 .. 07 ]   Pointer to READER_NAME
- * [ 08 .. 0F ]   Pointer to UserData 
- * [ 10 .. 13 ]   Current State
- * [ 14 .. 17 ]   Actual State
- * [ 18 .. 1B ]   ATR (size)
- * [ 1C .. 3F ]   ATR[36]
+ *   Win/MacOs    Linux
+ * [ 00 .. 07 ]                  Pointer to READER_NAME
+ * [ 08 .. 0F ]                  Pointer to UserData 
+ * [ 10 .. 13 ]   [ 10 .. 17 ]   Current State
+ * [ 14 .. 17 ]   [ 18 .. 1F ]   Actual State
+ * [ 18 .. 1B ]   [ 20 .. 27 ]   ATR (size)
+ * [ 1C .. 3F ]   [ 28 .. 4F ]   ATR[33 or 36]
  * 
  */
-export const CURRENT_STATE_OFFSET = POINTER_SIZE + POINTER_SIZE;
-export const ACTUAL_STATE_OFFSET = CURRENT_STATE_OFFSET + DWORD_SIZE;
-export const ATR_OFFSET = ACTUAL_STATE_OFFSET + DWORD_SIZE;
-export const SCARDREADERSTATE_SIZE = ATR_OFFSET + DWORD_SIZE + SCARD_ATR_SIZE;
+export const CURRENT_STATE_OFFSET = PLATFORM.POINTER_SIZE + PLATFORM.POINTER_SIZE;
+export const EVENT_STATE_OFFSET = CURRENT_STATE_OFFSET + PLATFORM.DWORD_SIZE;
+export const ATR_OFFSET = EVENT_STATE_OFFSET + PLATFORM.DWORD_SIZE;
+export const SCARDREADERSTATE_SIZE = ATR_OFFSET + PLATFORM.DWORD_SIZE + SCARD_ATR_SIZE;
 
 // deno-lint-ignore no-explicit-any
 export abstract class SCARDREADERSTATE<TNAME = any, TUSERDATA = any> {
@@ -93,7 +89,7 @@ export abstract class SCARDREADERSTATE<TNAME = any, TUSERDATA = any> {
 
   get eventState(): StateFlags {
     return new DataView(this.#buffer.buffer).getUint32(
-      ACTUAL_STATE_OFFSET,
+      EVENT_STATE_OFFSET,
       true,
     );
   }
@@ -105,7 +101,7 @@ export abstract class SCARDREADERSTATE<TNAME = any, TUSERDATA = any> {
     );
 
     const atr = new Uint8Array(atrLen);
-    atr.set(this.#buffer.slice(ATR_OFFSET + DWORD_SIZE, atrLen));
+    atr.set(this.#buffer.slice(ATR_OFFSET + PLATFORM.DWORD_SIZE, atrLen));
 
     return atr;
   }
@@ -117,12 +113,18 @@ export abstract class SCARDREADERSTATE<TNAME = any, TUSERDATA = any> {
       alignedStateSize * states.length,
     );
 
-    states.forEach((state, index) =>
+    states.forEach((state, index) => {
       stateBuffer.set(
         state.buffer,
         index * alignedStateSize,
-      )
-    );
+      );
+
+      new DataView(stateBuffer.buffer, index * alignedStateSize).setUint32(
+        EVENT_STATE_OFFSET,
+        0,
+        true,
+      );
+    } );
 
     return stateBuffer;
   }

@@ -1,11 +1,11 @@
-import { isWin } from './reader-state.ts';
+import { PLATFORM } from "./platform.ts";
 
 export const INFINITE = 0xFFFFFFFF;
 
 export type DWORD = number;
 
-export type SCARDCONTEXT = DWORD | bigint;
-export type SCARDHANDLE = DWORD | bigint;
+export type SCARDCONTEXT = DWORD|bigint;
+export type SCARDHANDLE = DWORD|bigint;
 
 export enum Disposition {
   LeaveCard = 0x0000, /**< SCARD_LEAVE_CARD - Do nothing on close */
@@ -53,11 +53,11 @@ export enum Scope {
 }
 
 export enum CardStatus {
-  Unknown = (isWin) ? 0 : 0x0001, /**< SCARD_UNKNOWN - Unknown state */
-  Absent = (isWin) ? 1 : 0x0002, /**< SCARD_ABSENT - Card is absent */
-  Present = (isWin) ? 2 : 0x0004, /**< SCARD_PRESENT - Card is present */
-  Swallowed = (isWin) ? 3 : 0x0008, /**< SCARD_SWALLOWED - Card not powered */
-  Powered = (isWin) ? 4 : 0x0010, /**< SCARD_POWERED - Card is powered */
-  Negotiable = (isWin) ? 5 : 0x0020, /**< SCARD_NEGOTIABLE - Ready for PTS */
-  Specific = (isWin) ? 6 : 0x0040, /**< SCARD_SPECIFIC - PTS has been set */
+  Unknown = (PLATFORM.isWin) ? 0 : 0x0001, /**< SCARD_UNKNOWN - Unknown state */
+  Absent = (PLATFORM.isWin) ? 1 : 0x0002, /**< SCARD_ABSENT - Card is absent */
+  Present = (PLATFORM.isWin) ? 2 : 0x0004, /**< SCARD_PRESENT - Card is present */
+  Swallowed = (PLATFORM.isWin) ? 3 : 0x0008, /**< SCARD_SWALLOWED - Card not powered */
+  Powered = (PLATFORM.isWin) ? 4 : 0x0010, /**< SCARD_POWERED - Card is powered */
+  Negotiable = (PLATFORM.isWin) ? 5 : 0x0020, /**< SCARD_NEGOTIABLE - Ready for PTS */
+  Specific = (PLATFORM.isWin) ? 6 : 0x0040, /**< SCARD_SPECIFIC - PTS has been set */
 }

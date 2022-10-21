@@ -12,7 +12,7 @@ import {
   ShareMode,
 } from '../pcsc/pcsc.ts';
 
-import { isWin, DWORD_SIZE, POINTER_SIZE } from '../pcsc/reader-state.ts';
+import { PLATFORM } from '../pcsc/platform.ts';
 import { FFI_SCARDREADERSTATE } from './reader.ts';
 
 const libPath = {
@@ -24,20 +24,20 @@ const libPath = {
 // PC/SC HANDLE
 // Darwin (M1, ?) and linux, via pcsclite, use DWORD
 // Windows x64 (winscard.dll) uses a long long 
-const FFI_PCSC_HANDLE = isWin ? "pointer" : "usize";
-const FFI_PCSC_HANDLE_SIZE = isWin ? POINTER_SIZE : DWORD_SIZE;
+const FFI_PCSC_HANDLE = (PLATFORM.isWin) ? "pointer" : "usize";
+const FFI_PCSC_HANDLE_SIZE = (PLATFORM.isWin) ? PLATFORM.POINTER_SIZE : PLATFORM.DWORD_SIZE;
 
 const libPCSC = Deno.dlopen(
   libPath[Deno.build.os],
   {
     SCardEstablishContext: {
-      parameters: ["u32", "usize", "usize", "pointer"],
+      parameters: ["u32", "usize", "usize", "buffer"],
       result: "u32",
     },
     SCardListReaders: {
-      parameters: [FFI_PCSC_HANDLE, "pointer", "pointer", "pointer"],
+      parameters: [FFI_PCSC_HANDLE, "buffer", "buffer", "buffer"],
       result: "u32",
-      name: `SCardListReaders${isWin ? "A" : ""}`,
+      name: `SCardListReaders${PLATFORM.isWin ? "A" : ""}`,
     },
     SCardIsValidContext: {
       parameters: [FFI_PCSC_HANDLE],
@@ -52,23 +52,23 @@ const libPCSC = Deno.dlopen(
       result: "u32",
     },
     SCardGetStatusChange: {
-      parameters: [FFI_PCSC_HANDLE, "u32", "pointer", "u32"],
+      parameters: [FFI_PCSC_HANDLE, "u32", "buffer", "u32"],
       nonblocking: true,
       result: "u32",
-      name: `SCardGetStatusChange${isWin ? "A" : ""}`,
+      name: `SCardGetStatusChange${PLATFORM.isWin ? "A" : ""}`,
     },
     SCardGetStatusChangeSync: {
-      parameters: [FFI_PCSC_HANDLE, "u32", "pointer", "u32"],
+      parameters: [FFI_PCSC_HANDLE, "u32", "buffer", "u32"],
       result: "u32",
-      name: `SCardGetStatusChange${isWin ? "A" : ""}`,
+      name: `SCardGetStatusChange${PLATFORM.isWin ? "A" : ""}`,
     },
     SCardConnect: {
-      parameters: [FFI_PCSC_HANDLE, "pointer", "u32", "u32", "pointer", "pointer"],
+      parameters: [FFI_PCSC_HANDLE, "buffer", "u32", "u32", "buffer", "buffer"],
       result: "u32",
-      name: `SCardConnect${isWin ? "A" : ""}`,
+      name: `SCardConnect${PLATFORM.isWin ? "A" : ""}`,
     },
     "SCardReconnect": {
-      parameters: [FFI_PCSC_HANDLE, "u32", "u32", "u32", "pointer"],
+      parameters: [FFI_PCSC_HANDLE, "u32", "u32", "u32", "buffer"],
       result: "u32",
     },
     "SCardDisconnect": {
@@ -86,12 +86,12 @@ const libPCSC = Deno.dlopen(
     "SCardTransmit": {
       parameters: [
         FFI_PCSC_HANDLE,
-        "pointer",
-        "pointer",
+        "buffer",
+        "buffer",
         "u32",
-        "pointer",
-        "pointer",
-        "pointer",
+        "buffer",
+        "buffer",
+        "buffer",
       ],
       nonblocking: true,
       result: "u32",
@@ -99,12 +99,12 @@ const libPCSC = Deno.dlopen(
     "SCardTransmitSync": {
       parameters: [
         FFI_PCSC_HANDLE,
-        "pointer",
-        "pointer",
+        "buffer",
+        "buffer",
         "u32",
-        "pointer",
-        "pointer",
-        "pointer",
+        "buffer",
+        "buffer",
+        "buffer",
       ],
       result: "u32",
       name: `SCardTransmit`,
@@ -112,34 +112,34 @@ const libPCSC = Deno.dlopen(
     SCardStatus: {
       parameters: [
         FFI_PCSC_HANDLE,
-        "pointer",
-        "pointer",
-        "pointer",
-        "pointer",
-        "pointer",
-        "pointer",
+        "buffer",
+        "buffer",
+        "buffer",
+        "buffer",
+        "buffer",
+        "buffer",
       ],
       result: "u32",
-      name: `SCardStatus${isWin ? "A" : ""}`,
+      name: `SCardStatus${PLATFORM.isWin ? "A" : ""}`,
     },
     SCardControl: {
       parameters: [
         FFI_PCSC_HANDLE,
         "u32",
-        "pointer",
+        "buffer",
         "u32",
-        "pointer",
+        "buffer",
         "u32",
-        "pointer",
+        "buffer",
       ],
       result: "u32",
     },
     SCardGetAttrib: {
-      parameters: [FFI_PCSC_HANDLE, "u32", "pointer", "pointer"],
+      parameters: [FFI_PCSC_HANDLE, "u32", "buffer", "buffer"],
       result: "u32",
     },
     SCardSetAttrib: {
-      parameters: [FFI_PCSC_HANDLE, "u32", "pointer", "u32"],
+      parameters: [FFI_PCSC_HANDLE, "u32", "buffer", "u32"],
       result: "u32",
     },
   }
@@ -153,22 +153,54 @@ function ensureSCardSuccess(rc: number, func: string) {
   }
 }
 
+class DWORDBuffer extends Uint8Array {
+  constructor(value?: DWORD) {
+    super(PLATFORM.DWORD_SIZE);
+
+    this.value = value ?? 0;
+  }
+
+  get value(): DWORD {
+    const view = new DataView(this.buffer);
+
+    // TODO: Handle ARM64 Big-endian
+    return (PLATFORM.DWORD_SIZE == 4)
+      ? view.getUint32(0, true)
+      : Number(view.getBigUint64(0, true));
+  }
+
+  set value(value: DWORD) {
+    const view = new DataView(this.buffer);
+
+    // TODO: Handle ARM64 Big-endian
+    if (PLATFORM.DWORD_SIZE == 4)
+      view.setUint32(0, value, true);
+    else
+      view.setBigUint64(0, BigInt(value), true);
+  }
+}
+
+function getHandleFromBuffer(handle: Uint8Array): number | bigint {
+  const view = new DataView(handle.buffer);
+
+  return (FFI_PCSC_HANDLE_SIZE == 8) ? view.getBigUint64(0, true) : view.getUint32(0, true);
+}
+
 export function SCardEstablishContext(scope: DWORD): SCARDCONTEXT {
-  const ctx = new Uint8Array(FFI_PCSC_HANDLE_SIZE);
-  const view = new DataView(ctx.buffer);
+  const context = new Uint8Array(FFI_PCSC_HANDLE_SIZE);
 
   ensureSCardSuccess(
-    libPCSC.symbols.SCardEstablishContext(scope, 0, 0, ctx),
+    libPCSC.symbols.SCardEstablishContext(scope, 0, 0, context),
     "SCardEstablishContext",
   );
 
-  return isWin ? view.getBigUint64(0, true) : view.getUint32(0, true);
+  return getHandleFromBuffer(context);
 }
 
 export function SCardIsValidContext(hContext: SCARDCONTEXT): boolean {
   const ret = libPCSC.symbols.SCardIsValidContext(hContext);
 
-  return ( ret == 0 );
+  return (ret == 0);
 }
 
 export function SCardCancel(hContext: SCARDCONTEXT) {
@@ -190,11 +222,7 @@ export function SCardListReaders(
   mszGroups: CSTR | null,
   mszReaders: CSTR | null,
 ): DWORD {
-  const readersLen = new Uint8Array(DWORD_SIZE);
-
-  if (mszReaders !== null) {
-    new DataView(readersLen.buffer).setUint32(0, mszReaders.length, true);
-  }
+  const readerNamesLen = new DWORDBuffer(mszReaders?.length);
 
   const readerNames = mszReaders?.buffer ?? null;
 
@@ -203,12 +231,12 @@ export function SCardListReaders(
       hContext,
       mszGroups?.buffer ?? null,
       readerNames,
-      readersLen,
+      readerNamesLen,
     ),
     "SCardListReaders",
   );
 
-  return new DataView(readersLen.buffer).getUint32(0, true);
+  return readerNamesLen.value;
 }
 
 export function SCardConnect(
@@ -217,9 +245,8 @@ export function SCardConnect(
   shareMode: ShareMode,
   preferredProtocols: Protocol,
 ): { handle: SCARDHANDLE; protocol: Protocol } {
-  const protocol = new Uint8Array(DWORD_SIZE);
+  const protocol = new DWORDBuffer();
   const handle = new Uint8Array(FFI_PCSC_HANDLE_SIZE);
-  const view = new DataView(handle.buffer);
 
   ensureSCardSuccess(
     //    pcsc.symbols.SCardConnectA(
@@ -235,8 +262,8 @@ export function SCardConnect(
   );
 
   return {
-    handle: isWin ? view.getBigUint64(0, true) : view.getUint32(0, true),
-    protocol: new DataView(protocol.buffer).getUint32(0, true),
+    handle: getHandleFromBuffer(handle),
+    protocol: protocol.value,
   };
 }
 
@@ -246,7 +273,7 @@ export function SCardReconnect(
   preferredProtocols: DWORD,
   initialization: Disposition,
 ): { protocol: Protocol } {
-  const protocol = new Uint8Array(DWORD_SIZE);
+  const protocol = new DWORDBuffer();
 
   ensureSCardSuccess(
     libPCSC.symbols.SCardReconnect(
@@ -260,7 +287,7 @@ export function SCardReconnect(
   );
 
   return {
-    protocol: new DataView(protocol.buffer).getUint32(0, true),
+    protocol: protocol.value,
   };
 }
 
@@ -277,19 +304,18 @@ export function SCardDisconnect(
   );
 }
 
-function prepareTransmit(recvLength: DWORD) {
-  const pioSendPci = new Uint8Array(8);
-  new DataView(pioSendPci.buffer).setUint32(0, 1, true);
-  new DataView(pioSendPci.buffer).setUint32(4, 8, true);
+function prepareTransmit(recvLength: DWORD, activeProtocol: DWORD) {
+  const PIO_SIZE = 2 * PLATFORM.DWORD_SIZE;
 
-  const pioRecvPci = new Uint8Array(8);
+  const pioSendPci = new Uint8Array(PIO_SIZE);
+  new DataView(pioSendPci.buffer).setUint32(0, activeProtocol, true);
+  new DataView(pioSendPci.buffer).setUint32(PLATFORM.DWORD_SIZE, PIO_SIZE, true);
+
+  const pioRecvPci = new Uint8Array(PIO_SIZE);
   pioRecvPci.set(pioSendPci);
 
   const recvBuffer = new Uint8Array(recvLength + 2);
-
-  const recvLengthBuffer = new Uint8Array(DWORD_SIZE);
-
-  new DataView(recvLengthBuffer.buffer).setUint32(0, recvBuffer.length, isWin);
+  const recvLengthBuffer = new DWORDBuffer(recvBuffer.length);
 
   return {
     pioSendPci,
@@ -303,8 +329,9 @@ export async function SCardTransmit(
   hCard: SCARDHANDLE,
   sendBuffer: Uint8Array,
   recvLength: DWORD,
+  activeProtocol: DWORD,
 ): Promise<Uint8Array> {
-  const { pioSendPci, pioRecvPci, recvBuffer, recvLengthBuffer } = prepareTransmit(recvLength);
+  const { pioSendPci, pioRecvPci, recvBuffer, recvLengthBuffer } = prepareTransmit(recvLength, activeProtocol);
 
   ensureSCardSuccess(
     await libPCSC.symbols.SCardTransmit(
@@ -319,7 +346,7 @@ export async function SCardTransmit(
     "SCardTransmit",
   );
 
-  recvLength = new DataView(recvLengthBuffer.buffer).getUint32(0, true);
+  recvLength = recvLengthBuffer.value;
 
   return recvBuffer.slice(0, recvLength);
 }
@@ -328,8 +355,9 @@ export function SCardTransmitSync(
   hCard: SCARDHANDLE,
   sendBuffer: Uint8Array,
   recvLength: DWORD,
+  activeProtocol: DWORD,
 ): Uint8Array {
-  const { pioSendPci, pioRecvPci, recvBuffer, recvLengthBuffer } = prepareTransmit(recvLength);
+  const { pioSendPci, pioRecvPci, recvBuffer, recvLengthBuffer } = prepareTransmit(recvLength, activeProtocol);
 
   ensureSCardSuccess(
     libPCSC.symbols.SCardTransmitSync(
@@ -344,7 +372,7 @@ export function SCardTransmitSync(
     "SCardTransmit",
   );
 
-  recvLength = new DataView(recvLengthBuffer.buffer).getUint32(0, true);
+  recvLength = recvLengthBuffer.value;
 
   return recvBuffer.slice(0, recvLength);
 }
@@ -376,19 +404,10 @@ export function SCardCardStatus(
   protocol: Protocol;
   atrLen: DWORD;
 } {
-  const readerNamesLen = new Uint8Array(DWORD_SIZE);
-
-  if (mszReaderNames !== null) {
-    new DataView(readerNamesLen.buffer).setUint32(0, mszReaderNames.length, isWin);
-  }
-
-  const state = new Uint8Array(DWORD_SIZE);
-  const protocol = new Uint8Array(DWORD_SIZE);
-  const atrLen = new Uint8Array(DWORD_SIZE);
-
-  if (rgbAtr !== null) {
-    new DataView(atrLen.buffer).setUint32(0, rgbAtr.length, isWin);
-  }
+  const readerNamesLen = new DWORDBuffer(mszReaderNames?.length);
+  const state = new DWORDBuffer();
+  const protocol = new DWORDBuffer();
+  const atrLen = new DWORDBuffer(rgbAtr?.length)
 
   ensureSCardSuccess(
     libPCSC.symbols.SCardStatus(
@@ -404,10 +423,10 @@ export function SCardCardStatus(
   );
 
   return {
-    readerNamesLen: new DataView(readerNamesLen.buffer).getUint32(0),
-    status: new DataView(state.buffer).getUint32(0),
-    protocol: new DataView(protocol.buffer).getUint32(0),
-    atrLen: new DataView(atrLen.buffer).getUint32(0),
+    readerNamesLen: readerNamesLen.value,
+    status: state.value,
+    protocol: protocol.value,
+    atrLen: atrLen.value,
   };
 }
 
@@ -471,9 +490,7 @@ export function SCardControl(
   dataIn: Uint8Array,
   dataOut: Uint8Array,
 ): DWORD {
-  const outLen = new Uint8Array(DWORD_SIZE);
-
-  new DataView(outLen.buffer).setUint32(dataOut.length, 0, true);
+  const outLen = new DWORDBuffer(dataOut.length);
 
   ensureSCardSuccess(
     libPCSC.symbols.SCardControl(
@@ -488,7 +505,7 @@ export function SCardControl(
     "SCardControl",
   );
 
-  return new DataView(outLen.buffer).getUint32(0, true);
+  return outLen.value;
 }
 
 export function SCardGetAttrib(
@@ -496,18 +513,14 @@ export function SCardGetAttrib(
   attrID: DWORD,
   attrib: Uint8Array | null,
 ): DWORD {
-  const bufLen = new Uint8Array(DWORD_SIZE);
-
-  if (attrib !== null) {
-    new DataView(bufLen.buffer).setUint32(attrib.length, 0, true);
-  }
+  const bufLen = new DWORDBuffer(attrib?.length);
 
   ensureSCardSuccess(
     libPCSC.symbols.SCardGetAttrib(hCard, attrID, attrib, attrib, bufLen),
     "SCardGetAttrib",
   );
 
-  return new DataView(bufLen.buffer).getUint32(0, true);
+  return bufLen.value;
 }
 
 export function SCardSetAttrib(

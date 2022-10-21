@@ -1,6 +1,7 @@
-import { Reader, Protocol, DWORD, ShareMode, StateFlag, SCARDREADERSTATE, StateFlags } from '../pcsc/pcsc.ts';
+import { PLATFORM } from './../pcsc/platform.ts';
+import { Reader, Protocol, DWORD, ShareMode, Disposition, StateFlag, SCARDREADERSTATE, StateFlags } from '../pcsc/pcsc.ts';
 import { ReaderStatus, ReaderStatusChangeHandler } from '../pcsc/context.ts';
-import { isWin, ATR_OFFSET, SCARD_ATR_SIZE } from '../pcsc/reader-state.ts';
+import { ATR_OFFSET, SCARD_ATR_SIZE } from '../pcsc/reader-state.ts';
 
 import { CSTR } from './ffi-utils.ts';
 
@@ -15,25 +16,30 @@ export class FFI_SCARDREADERSTATE extends SCARDREADERSTATE<CSTR, null> {
 
     data.setBigUint64(
       0,
-      Deno.UnsafePointer.of(this.name.buffer).valueOf(),
+      BigInt(Deno.UnsafePointer.of(this.name.buffer).valueOf()),
       true,
     );
 
-    data.setUint32(ATR_OFFSET, SCARD_ATR_SIZE, isWin);
+    data.setUint32(ATR_OFFSET, SCARD_ATR_SIZE, PLATFORM.isWin);
   }
+}
 
+export interface ConnectionHandler {
+  connected(card: FFICard): void;
+  reconnected(card: FFICard, newProtocol: Protocol): void;
+  disconnected(card: FFICard): void;
 }
 
 /**
  * Reader for Deno FFI PC/SC wrapper
  */
 export class FFIReader implements Reader {
-  #state: FFI_SCARDREADERSTATE;
+  #readerState: FFI_SCARDREADERSTATE;
   #status: ReaderStatus;
 
   #updateState(): void {
     //const current = this.#state.currentState;
-    const event = this.#state.eventState;
+    const event = this.#readerState.eventState;
     const status = this.#status;
 
     //console.log(`updateState: cur=${current.toString(16)} event=${event}`);
@@ -42,7 +48,7 @@ export class FFIReader implements Reader {
       // we're dead
       return;
     } else if (this.#status == "setup") {
-      if (this.#state.currentState == StateFlag.Unknown) {
+      if (this.#readerState.currentState == StateFlag.Unknown) {
         // ignore 1st state change, so that listeners receive event with "setup"
         return;
       }
@@ -75,13 +81,14 @@ export class FFIReader implements Reader {
     public readonly context: FFIContext,
     readerName: CSTR,
   ) {
-    this.#state = new FFI_SCARDREADERSTATE(
+    this.#readerState = new FFI_SCARDREADERSTATE(
       readerName,
       null,
       () => {
         this.#updateState();
       },
     );
+
     this.#status = "setup";
   }
 
@@ -92,7 +99,7 @@ export class FFIReader implements Reader {
   onStatusChange?: ReaderStatusChangeHandler;
 
   get name() {
-    return this.#state.name.toString();
+    return this.#readerState.name.toString();
   }
 
   get status(): ReaderStatus {
@@ -107,17 +114,17 @@ export class FFIReader implements Reader {
   }
 
   get state(): StateFlags {
-    return this.#state.currentState;
+    return this.#readerState.currentState;
   }
 
   get isPresent(): boolean {
-    return (this.#state.currentState & StateFlag.Present) != 0;
+    return (this.#readerState.currentState & StateFlag.Present) != 0;
   }
   get isConnected(): boolean {
-    return (this.#state.currentState & StateFlag.Inuse) != 0;
+    return (this.#readerState.currentState & StateFlag.Inuse) != 0;
   }
   get isMute(): boolean {
-    return (this.#state.currentState & StateFlag.Mute) != 0;
+    return (this.#readerState.currentState & StateFlag.Mute) != 0;
   }
 
   /**
@@ -128,16 +135,20 @@ export class FFIReader implements Reader {
     supportedProtocols = Protocol.Any,
   ): Promise<FFICard> {
     const { handle, protocol } = this.context.connect(
-      this.#state.name,
+      this.#readerState.name,
       shareMode,
       supportedProtocols,
     );
 
-    return Promise.resolve(new FFICard(this, handle, protocol));
+    this.#status = "connected";
+
+    const card = new FFICard(this, handle, protocol);
+
+    return Promise.resolve(card);
   }
 
   get readerState(): FFI_SCARDREADERSTATE {
-    return this.#state;
+    return this.#readerState;
   }
 
   static isValidReader(reader: Reader): reader is FFIReader {

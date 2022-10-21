@@ -1,4 +1,4 @@
-import { Context, Reader, Protocol,  SCARDCONTEXT, ShareMode, StateFlag, Scope } from '../pcsc/pcsc.ts';
+import { Context, Reader, Protocol, SCARDCONTEXT, ShareMode, StateFlag, Scope } from '../pcsc/pcsc.ts';
 import { ReaderStatusChangeHandler } from '../pcsc/context.ts';
 
 import { SmartCardException } from '../iso7816/iso7816.ts';
@@ -6,10 +6,9 @@ import { SmartCardException } from '../iso7816/iso7816.ts';
 import * as native from './pcsc-ffi-wrapper.ts';
 import { CSTR } from './ffi-utils.ts';
 
-//import { SCARDCONTEXT, Scope, StateFlag, ShareMode, Protocol } from '../pcsc/pcsc.ts';
-
 import { FFIReader, FFI_SCARDREADERSTATE } from './reader.ts';
 import { SCardIsValidContext } from "./pcsc-ffi-wrapper.ts";
+//import { CURRENT_STATE_OFFSET, SCARDREADERSTATE } from "../pcsc/reader-state.ts";
 
 /**
  * Context for Deno FFI PC/SC wrapper
@@ -19,33 +18,61 @@ export class FFIContext implements Context {
 
   #readers: Map<string, FFIReader>;
 
-  #pnpReader: FFIReader;
-
   #onStatusChange?: ReaderStatusChangeHandler;
 
   #updating = false;
 
   //#readerPromise?: Promise<void> = undefined;
 
-  async #waitForChange(readers: Reader[], timeout: number): Promise<FFIReader[]> {
-    if (!FFIContext.isValidContext(this.#context)) {
-      return [];
-    }
+  async #waitForChange(readers: Reader[], timeout: number, includePNP = false): Promise<{ changed: FFIReader[], mustRescan: boolean }> {
+    let mustRescan = false;
 
-    if (!FFIReader.isValidReaders(readers)) {
-      return [];
+    if (!FFIContext.isValidContext(this.#context) || !FFIReader.isValidReaders(readers)) {
+      return { changed: [], mustRescan: false };
     }
 
     const states = readers.map(
       (reader) => reader.readerState,
     );
 
+    if (includePNP = false) {
+      const pnpReaderState = new class extends FFI_SCARDREADERSTATE {
+        constructor() {
+          super( CSTR.from("\\\\?PnP?\\Notification"), null );
+        }
+
+        initBuffer() {
+          this.buffer.fill(0);
+
+          const data = new DataView(this.buffer.buffer);
+      
+          data.setBigUint64(
+            0,
+            BigInt(Deno.UnsafePointer.of(this.name.buffer).valueOf()),
+            true,
+          );
+        }
+      }();
+
+      states.unshift(pnpReaderState);
+    }
+
     const changed = await native.SCardGetStatusChange(this.#context, timeout, states);
 
-    // return all Readers[] that signalled state-change
-    return changed.flatMap(
-      chg => ( readers[ chg ].readerState.eventState & StateFlag.Changed ) ? readers[ chg ] : [] 
-    );
+    if (includePNP && changed.includes(0)) {
+      mustRescan = true;
+
+      changed.shift();
+    }
+
+    // return all Readers[] that signal state-change
+    return {
+      changed: changed.flatMap(
+        chg => (readers[chg].readerState.eventState & StateFlag.Changed) ? readers[chg] : []
+      ),
+
+      mustRescan
+    }
   }
 
   #getReaderStatus(readers: Reader[]): FFIReader[] {
@@ -65,7 +92,7 @@ export class FFIContext implements Context {
 
     // return all Readers[] that signalled state-change
     return changed.flatMap(
-      chg => ( readers[ chg ].readerState.eventState & StateFlag.Changed ) ? readers[ chg ] : [] 
+      chg => (readers[chg].readerState.eventState & StateFlag.Changed) ? readers[chg] : []
     );
   }
 
@@ -146,7 +173,6 @@ export class FFIContext implements Context {
   protected constructor(context: SCARDCONTEXT) {
     this.#context = context;
     this.#readers = new Map();
-    this.#pnpReader = new FFIReader(this, CSTR.from("\\\\?PnP?\\Notification"));
   }
 
   listReaders(rescan = false): FFIReader[] {
@@ -164,21 +190,13 @@ export class FFIContext implements Context {
   ): Promise<FFIReader[]> {
     readers = readers ?? this.listReaders();
 
-    const readersReq = (rescan) ? [this.#pnpReader, ...readers] : readers;
+    const { changed, mustRescan: newReader } = await this.#waitForChange(readers, timeout, rescan);
 
-    const changed = await this.#waitForChange(readersReq, timeout);
-
-    if (rescan && changed.includes(this.#pnpReader)) {
-      const [_, ...readers] = changed;
-
-      this.#updateReaderList(
-        readers.map((reader) => reader.readerState.name),
-      );
-
-      return readers;
-    } else {
-      return changed;
+    if (newReader) {
+      this.#listReaders();
     }
+
+    return changed;
   }
 
   get onStatusChange() {
@@ -226,7 +244,7 @@ export class FFIContext implements Context {
     if (!this.isValid()) {
       throw new SmartCardException("SmartCard context is shutdown");
     }
-   
+
     // Connect to Card
     return native.SCardConnect(
       this.#context!,
