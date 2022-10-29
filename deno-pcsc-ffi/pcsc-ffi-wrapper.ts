@@ -17,7 +17,7 @@ import { FFI_SCARDREADERSTATE } from './reader.ts';
 
 const libPath = {
   "windows": "winscard.dll",
-  "linux": "libpcsclite.so",
+  "linux": "libpcsclite.so.1",
   "darwin": "/System/Library/Frameworks/PCSC.framework/PCSC",
 };
 
