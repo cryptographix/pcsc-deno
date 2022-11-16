@@ -14,8 +14,6 @@ export enum Disposition {
   EjectCard = 0x0003, /**< SCARD_EJECT_CARD - Eject on close */
 }
 
-export type StateFlags = StateFlag; // DWORD of StateFlag[]
-
 export enum StateFlag {
   Unaware = 0x0000, /**< SCARD_STATE_UNAWARE - App unaware of reader status */
   Ignore = 0x0001, /**< SCARD_STATE_IGNORE - Ignore this reader */

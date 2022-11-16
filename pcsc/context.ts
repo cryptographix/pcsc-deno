@@ -1,4 +1,4 @@
-import { Disposition, Protocol, ShareMode, DWORD, StateFlags } from './pcsc.ts';
+import { Disposition, Protocol, ShareMode, DWORD } from './pcsc.ts';
 import { CommandAPDU, ResponseAPDU } from '../iso7816/apdu.ts';
 import { BytesLike } from "../iso7816/iso7816.ts";
 
@@ -38,7 +38,7 @@ export interface Reader {
 
   readonly status: ReaderStatus;
 
-  readonly state: StateFlags;
+  readonly state: DWORD;
 
   connect(shareMode?: ShareMode, preferredProtocols?: Protocol): Promise<Card>;
 

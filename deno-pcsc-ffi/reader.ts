@@ -1,5 +1,5 @@
 import { PLATFORM } from './../pcsc/platform.ts';
-import { Reader, Protocol, DWORD, ShareMode, Disposition, StateFlag, SCARDREADERSTATE, StateFlags } from '../pcsc/pcsc.ts';
+import { Reader, Protocol, DWORD, ShareMode, Disposition, StateFlag, SCARDREADERSTATE } from '../pcsc/pcsc.ts';
 import { ReaderStatus, ReaderStatusChangeHandler } from '../pcsc/context.ts';
 import { ATR_OFFSET, SCARD_ATR_SIZE } from '../pcsc/reader-state.ts';
 
@@ -113,7 +113,7 @@ export class FFIReader implements Reader {
     return (changed.length == 1) ? this.status : "no-change";
   }
 
-  get state(): StateFlags {
+  get state(): DWORD {
     return this.#readerState.currentState;
   }
 

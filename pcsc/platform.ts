@@ -1,4 +1,4 @@
-export const osType: "windows"|"linux"|"darwin"|"unknown" = (typeof Deno != "undefined") ? Deno.build.os : "unknown";
+export const osType/*: "windows"|"linux"|"darwin"|"unknown"*/ = (typeof Deno != "undefined") ? Deno.build.os : "unknown";
 
 export const PLATFORM = 
 {
@@ -8,5 +8,5 @@ export const PLATFORM =
   isMac: (osType == "darwin"),
 
   DWORD_SIZE: (osType == "linux") ? 8 : 4,
-  POINTER_SIZE: 8,   // 64 bits only
+  POINTER_SIZE: 8,   // Deno supports 64 bits only
 };

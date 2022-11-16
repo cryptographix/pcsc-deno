@@ -1,22 +1,22 @@
-import { StateFlag, StateFlags } from './pcsc.ts';
+import { DWORD, StateFlag } from './pcsc.ts';
 import { PLATFORM } from './platform.ts';
 
-export const SCARD_ATR_SIZE = PLATFORM.isWin ? 33 : 36;
 
 /**
  * SCARDREADER_STATE, 64bits
- *   Win/MacOs    Linux
- * [ 00 .. 07 ]                  Pointer to READER_NAME
- * [ 08 .. 0F ]                  Pointer to UserData 
- * [ 10 .. 13 ]   [ 10 .. 17 ]   Current State
- * [ 14 .. 17 ]   [ 18 .. 1F ]   Actual State
- * [ 18 .. 1B ]   [ 20 .. 27 ]   ATR (size)
- * [ 1C .. 3F ]   [ 28 .. 4F ]   ATR[33 or 36]
+ *   Win           MacOs         Linux
+ *               [ 00 .. 07 ]                 Pointer READER_NAME
+ *               [ 08 .. 0F ]                 Pointer UserData 
+ * [ 10 .. 13 ]  [ 10 .. 13 ]  [ 10 .. 17 ]   DWORD Current State
+ * [ 14 .. 17 ]  [ 14 .. 17 ]  [ 18 .. 1F ]   DWORD Actual State
+ * [ 18 .. 1B ]  [ 18 .. 1B ]  [ 20 .. 27 ]   DWORD ATR Size
+ * [ 1C .. 3C ]  [ 1C .. 3F ]  [ 28 .. 4F ]   BYTE[] ATR
  * 
  */
 export const CURRENT_STATE_OFFSET = PLATFORM.POINTER_SIZE + PLATFORM.POINTER_SIZE;
 export const EVENT_STATE_OFFSET = CURRENT_STATE_OFFSET + PLATFORM.DWORD_SIZE;
 export const ATR_OFFSET = EVENT_STATE_OFFSET + PLATFORM.DWORD_SIZE;
+export const SCARD_ATR_SIZE = PLATFORM.isWin ? 33 : 36;
 export const SCARDREADERSTATE_SIZE = ATR_OFFSET + PLATFORM.DWORD_SIZE + SCARD_ATR_SIZE;
 
 // deno-lint-ignore no-explicit-any
@@ -72,14 +72,14 @@ export abstract class SCARDREADERSTATE<TNAME = any, TUSERDATA = any> {
     return this.#buffer;
   }
 
-  get currentState(): StateFlags {
+  get currentState(): DWORD {
     return new DataView(this.#buffer.buffer).getUint32(
       CURRENT_STATE_OFFSET,
       true,
     );
   }
 
-  protected set currentState(state: StateFlags) {
+  protected set currentState(state: DWORD) {
     new DataView(this.#buffer.buffer).setUint32(
       CURRENT_STATE_OFFSET,
       state,
@@ -87,7 +87,7 @@ export abstract class SCARDREADERSTATE<TNAME = any, TUSERDATA = any> {
     );
   }
 
-  get eventState(): StateFlags {
+  get eventState(): DWORD {
     return new DataView(this.#buffer.buffer).getUint32(
       EVENT_STATE_OFFSET,
       true,
