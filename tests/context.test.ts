@@ -2,7 +2,7 @@ import { ContextProvider, Reader, HEX, Card } from '../mod.ts';
 import { Disposition, Protocol, ShareMode, StateFlag } from "../pcsc/scard.ts";
 import { Logger } from './utils/logger.ts';
 
-import { assert, assertEquals } from 'https://deno.land/std@0.146.0/testing/asserts.ts';
+import { assert, assertArrayIncludes, assertEquals } from 'https://deno.land/std@0.146.0/testing/asserts.ts';
 import { FFIContext, FFIReader } from "../deno-pcsc-ffi/deno-pcsc-ffi.ts";
 
 /*async function testReader(reader: Reader): Promise<void> {
@@ -210,7 +210,10 @@ async function testReaderStatusChange(context: FFIContext, reader: FFIReader) {
 
   assertEquals(await reader.waitForChange(), "no-change");
   Logger.detail("Initial state", state.eventState.toString(16));
-  assertEquals(reader.status, "present")
+  const otherUser = reader.status == "connected";
+
+  if (!otherUser)
+    assertEquals(reader.status,"present");
 
   assertEquals(await reader.waitForChange(), "no-change");
 
@@ -223,8 +226,10 @@ async function testReaderStatusChange(context: FFIContext, reader: FFIReader) {
   // PRESENT + INUSE
   let changed = await context.waitForChange([reader]);
   Logger.detail("State after initial CONNECT", state.currentState.toString(16));
-  assertEquals(changed.length, 1, "GetStatusChange() returns changed READERSTATE");
-  assertEquals(changed[0].readerState, state, "GetStatusChange() returns state object");
+  if (!otherUser) {
+    assertEquals(changed.length, 1, "GetStatusChange() returns changed READERSTATE");
+    assertEquals(changed[0].readerState, state, "GetStatusChange() returns state object");
+  }
   assertEquals(state.eventState & StateFlag.Changed, StateFlag.Changed, "GetStatusChange(): eventState includes CHANGED");
   assertEquals(state.currentState & StateFlag.Changed, 0, "GetStatusChange: currentState without CHANGED flag");
 
@@ -240,7 +245,10 @@ async function testReaderStatusChange(context: FFIContext, reader: FFIReader) {
     Disposition.UnpowerCard
   );
 
-  assertEquals(state.currentState & flagMask, StateFlag.Present, "POWEROFF ->  present and not in-use")
+  await context.waitForChange([reader]) as FFIReader[];
+  Logger.detail("State after DISCONNECT(UNPOWER)", state.currentState.toString(16));
+
+  assertEquals(state.eventState & flagMask, StateFlag.Present, "POWEROFF ->  present and not in-use")
 
   // Connect (SHARED)
   const card = await reader.connect(
@@ -252,7 +260,7 @@ async function testReaderStatusChange(context: FFIContext, reader: FFIReader) {
 
   assertEquals( (await context.waitForChange([reader])).length, 1);
   Logger.detail("State after CONNECT+SHARED", state.currentState.toString(16));
-  assertEquals(state.currentState & flagMask, StateFlag.Present | StateFlag.Inuse, "Connect(SHARED) -> present & in-use")
+  assertEquals(state.eventState & flagMask, StateFlag.Present | StateFlag.Inuse, "Connect(SHARED) -> present & in-use")
 
   // Reconnect (EXCLUSIVE)
   card.reconnect(

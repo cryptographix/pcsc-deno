@@ -16,7 +16,7 @@ export class FFI_SCARDREADERSTATE extends SCARDREADERSTATE<CSTR, null> {
 
     data.setBigUint64(
       0,
-      BigInt(Deno.UnsafePointer.of(this.name.buffer).valueOf()),
+      Deno.UnsafePointer.value(Deno.UnsafePointer.of(this.name.buffer)),
       true,
     );
 

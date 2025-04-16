@@ -4,12 +4,10 @@
 
 The [Application Level](#application-level-usage-example) abstraction offers a dev-friendly API based on concepts and objects such as `Context`, `Reader`, `Card`, `CommandAPDU` and `ResponseAPDU`. The [Low Level](#low-level-and-legacy-usage) API exists as a lightweight wrapper over the standard [PC/SC] API calls, useful when porting existing code.
 
-A third layer, OpenMobileAPI [OMAPI], is still work-in-progress.
-
 ## Status
-Requires Deno 1.23.2 or greater, along with `--unstable` and `--allow-ffi` flags.
+Requires Deno 1.25 or greater, along with `--unstable` and `--allow-ffi` flags.
 
-Currently tested on MAC (M1) and Windows 10 64bits. Should work on linux.
+Currently tested on MAC (M1), Windows 10 64bits and Linux (Ubuntu/Debian).
 Any problems, please raise issue at (https://github.com/cryptographix/pcsc-deno). PRs welcome.
 
 # Application-level API
